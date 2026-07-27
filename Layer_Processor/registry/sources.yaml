@@ -1,0 +1,110 @@
+# ============================================================================
+# REGISTRY DELLE FONTI — da dove scaricare i layer.
+# Guida gli stadi 01_discover e 02_download. Processate nell'ordine territoriale
+# regione → provincia (+ area metropolitana) → comune.
+#
+# Ogni fonte:
+#   key         identificatore ente, prefisso = livello (come in Torino):
+#                 r_<reg>   regione        (es. r_piemon)
+#                 p_<sigla> provincia      (es. p_to, p_bi)
+#                 c_<istat> comune         (es. c_001272 = Torino)
+#   livello     regione | provincia | comune
+#   ente        nome leggibile
+#   region      regione ISTAT (nome italiano, coerente col DB)
+#   province    (per livello provincia/comune) sigla o codice
+#   comune_istat (per livello comune) codice 6 cifre
+#   kind        geoportal_download | ckan | arcgis_rest | wfs | file_catalog | national_dataset
+#   url         punto di ingresso (pagina opendata / endpoint / catalogo)
+#   plan_types  [regolatore, operativo, stato] presenti attesi
+#   status      active | todo | dead
+#   notes       -
+# ============================================================================
+
+version: 1
+
+sources:
+
+  # ---- LIVELLO REGIONE ----------------------------------------------------
+  - key: r_piemon
+    livello: regione
+    ente: "Regione Piemonte — Geoportale"
+    region: "Piemonte"
+    kind: geoportal_download
+    url: "https://www.datigeo-piem-download.it/"
+    plan_types: [regolatore, stato]
+    status: active
+    notes: >
+      Pilota. Catalogo già scaricato in ../Nord/piemonte/_catalog.csv (946 dataset,
+      schema uuid,title,topic,url,local_path_or_status,bytes). Prefissi uuid:
+      r_piemon (regione), p_<sigla> (province), riuso diretto per il golden test.
+
+  # ---- LIVELLO PROVINCIA (esempi già presenti nel catalogo Torino) --------
+  - key: p_to
+    livello: provincia
+    ente: "Città Metropolitana di Torino — PTC2 / opendata"
+    region: "Piemonte"
+    province: "TO"
+    kind: geoportal_download
+    url: "http://www.cittametropolitana.torino.it/geoportale/"
+    plan_types: [regolatore, stato]
+    status: active
+    notes: "Provincia intesa come provincia + area metropolitana. Layer PTC_2_-_*."
+
+  - key: p_bi
+    livello: provincia
+    ente: "Provincia di Biella — PTPv"
+    region: "Piemonte"
+    province: "BI"
+    kind: geoportal_download
+    url: "https://www.provincia.biella.it/"
+    plan_types: [regolatore]
+    status: dead
+    notes: "Alcuni link PTPv 404 (vedi ../Nord/piemonte/_non_recuperati.csv). Da ritrovare."
+
+  # ---- FONTI NAZIONALI (operativo, valgono per tutti i territori) ---------
+  # Dal foglio 'EMI' di Ricerca_piani_territoriali_fondi_UE_Italia_download.xlsx.
+  # Già scaricate in ../Sources/. Si filtrano per territorio in fase di compose.
+  - key: n_opencup
+    livello: nazionale
+    ente: "OpenCUP — DIPE/Presidenza del Consiglio"
+    kind: national_dataset
+    url: "https://www.opencup.gov.it/portale/web/opencup/opendata"
+    plan_types: [operativo]
+    status: active
+    notes: "Opere pubbliche/incentivi/investimenti. In ../Sources/OpenCUP/ e opencup Regionale/."
+
+  - key: n_pnrr
+    livello: nazionale
+    ente: "OpenPNRR — Fondazione Openpolis"
+    kind: national_dataset
+    url: "https://openpnrr.it/opendata/"
+    plan_types: [operativo]
+    status: active
+    notes: "Investimenti PNRR. In ../Sources/PNRR/."
+
+  - key: n_opencoesione
+    livello: nazionale
+    ente: "OpenCoesione — DPCoe"
+    kind: national_dataset
+    url: "https://opencoesione.gov.it/it/opendata/"
+    plan_types: [operativo]
+    status: todo
+    notes: "Progetti coesione (aggiorna ogni 2 mesi)."
+
+  - key: n_pums
+    livello: nazionale
+    ente: "Osservatorio PUMS"
+    kind: national_dataset
+    url: "https://www.osservatoriopums.it/osservatorio"
+    plan_types: [operativo]
+    status: active
+    notes: "Interventi trasportistici programmati per comune/area."
+
+  - key: n_ainop
+    livello: nazionale
+    ente: "AINOP — MIT"
+    kind: national_dataset
+    url: "https://ainop.mit.gov.it/"
+    plan_types: [stato]
+    status: active
+    notes: "Anagrafe nazionale opere pubbliche. In ../Sources/AINOP - MIT/."

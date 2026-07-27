@@ -1,0 +1,11 @@
+# dati e stato: non versionati (rigenerabili dagli stadi)
+raw/
+work/
+out/
+state/
+!**/.gitkeep
+.env
+.env.local
+__pycache__/
+*.pyc
+.DS_Store

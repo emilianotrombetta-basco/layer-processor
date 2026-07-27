@@ -1,0 +1,277 @@
+# ============================================================================
+# TASSONOMIA CANONICA — i layer FINALI target del processore.
+# Curata a mano. Seminata dai temi reali della demo Torino/Piemonte.
+# Ogni classe qui è il "layer più informativo" in cui confluiscono N formulazioni
+# diverse (vedi layer_dictionary.yaml). NON aggiungere qui i nomi sorgente:
+# quelli stanno nel dizionario.
+#
+# Campi per classe:
+#   macro         1..4  (i 4 macro-blocchi della piattaforma)
+#   plan_type     regolatore | operativo
+#   geometry      polygon | line | point | mixed
+#   description   cosa rappresenta il layer finale
+#   topics        categorie ISO 19115/RNDT attese (aiutano il matcher a restringere)
+#   torino_ref    layer PIE-* equivalente nella demo (per il golden test)
+# ============================================================================
+
+version: 1
+macro_blocks:
+  1: "Regole e costruibilità"
+  2: "Ambiente e tutele"
+  3: "Attrattività e accessibilità · stato attuale"
+  4: "Scenari futuri"
+
+classes:
+
+  # ---- Macro 1 · Regole e costruibilità (regolatore) ----------------------
+  PRG_ZONING:
+    macro: 1
+    plan_type: regolatore
+    geometry: polygon
+    description: "Destinazioni d'uso / zonizzazione urbanistica normalizzata in classi semantiche."
+    topics: [planningCadastre]
+    torino_ref: [PIE-PRG-ZONE, PIE-PRG-STORICO-TO]
+  PRG_EDIFICI_STORICI:
+    macro: 1
+    plan_type: regolatore
+    geometry: polygon
+    description: "Edifici di particolare valore storico disciplinati dal PRG."
+    topics: [planningCadastre, structure]
+    torino_ref: [PIE-PRG-STORICO]
+  CATASTO:
+    macro: 1
+    plan_type: regolatore
+    geometry: polygon
+    description: "Fogli di mappa catastali (overview)."
+    topics: [planningCadastre]
+    torino_ref: [PIE-CATASTO-FOGLI]
+  PIANI_MATURITA:
+    macro: 1
+    plan_type: regolatore
+    geometry: polygon
+    description: "Stato/annata della disciplina urbanistica per comune (semaforo maturità)."
+    topics: [planningCadastre, boundaries]
+    torino_ref: [PIE-QUADRO-PIANI]
+
+  # ---- Macro 2 · Ambiente e tutele (regolatore) ---------------------------
+  AREE_PROTETTE:
+    macro: 2
+    plan_type: regolatore
+    geometry: polygon
+    description: "Aree protette istituite + siti Natura 2000 (tutela formale attiva)."
+    topics: [environment, biota]
+    torino_ref: [PIE-TUT-AREE-PROTETTE, PIE-NATURA-2000, PIE-TUT-PROTETTE-ISTITUITE]
+  RETE_ECOLOGICA:
+    macro: 2
+    plan_type: regolatore
+    geometry: mixed
+    description: "Corridoi ecologici, aree di valore ecologico (AVE), connettività."
+    topics: [environment, biota]
+    torino_ref: [PIE-TUT-CORRIDOI-ECO, PIE-TUT-AVE, PIE-TUT-CONNETTIVITA]
+  VINCOLI_PAESAGGISTICI:
+    macro: 2
+    plan_type: regolatore
+    geometry: polygon
+    description: "Vincoli paesaggistico-ambientali (D.Lgs 42/2004), beni e ambiti PPR."
+    topics: [environment, planningCadastre]
+    torino_ref: [PIE-TUT-VINCOLI-PAESAGGISTICI, PIE-PPR-VINCOLI, PIE-PPR-AMBITI]
+  RISCHIO_IDRAULICO:
+    macro: 2
+    plan_type: regolatore
+    geometry: polygon
+    description: "Pericolosità alluvioni (PGRA) e fasce fluviali PAI."
+    topics: [inlandWaters, geoscientificInformation]
+    torino_ref: [PIE-PGRA-PERICOLOSITA, PIE-FASCE-FLUVIALI]
+  DISSESTO_GEOLOGICO:
+    macro: 2
+    plan_type: regolatore
+    geometry: polygon
+    description: "Frane, aree inondabili, aree instabili (BDGeo / PAI dissesto)."
+    topics: [geoscientificInformation]
+    torino_ref: [PIE-DISSESTO-FRANE, PIE-DISSESTO-INONDABILI, PIE-DISSESTO-INSTABILI, PIE-PAI-FRANE, PIE-PAI-ESONDAZIONI]
+  VINCOLO_IDROGEOLOGICO:
+    macro: 2
+    plan_type: regolatore
+    geometry: polygon
+    description: "Vincolo idrogeologico (R.D. 3267/1923)."
+    topics: [geoscientificInformation, inlandWaters]
+    torino_ref: [PIE-VINCOLO-IDROGEO]
+  ACQUE:
+    macro: 2
+    plan_type: regolatore
+    geometry: mixed
+    description: "Reticolo idrografico e corpi idrici (tutela acque)."
+    topics: [inlandWaters]
+    torino_ref: [PIE-PPR-ACQUE, PIE-TUT-ACQUE-SPECIFICHE]
+  AGRICOLTURA:
+    macro: 2
+    plan_type: regolatore
+    geometry: polygon
+    description: "Aree agricole di elevato interesse agronomico / paesaggio rurale."
+    topics: [farming]
+    torino_ref: [PIE-PPR-AGRICOLTURA]
+  ALLERTA_PROTEZIONE_CIVILE:
+    macro: 2
+    plan_type: regolatore
+    geometry: polygon
+    description: "Zone di allertamento di protezione civile (bollettini criticità)."
+    topics: [climatologyMeteorologyAtmosphere, environment]
+    torino_ref: [PIE-ALLERTA-ZONE]
+
+  # ---- Macro 3 · Attrattività e accessibilità (stato attuale) -------------
+  TPL:
+    macro: 3
+    plan_type: stato
+    geometry: mixed
+    description: "Trasporto pubblico locale ricostruito da GTFS (linee + fermate)."
+    topics: [transportation]
+    torino_ref: [PIE-GTFS-RETE, PIE-GTFS-FERMATE]
+  FERROVIA:
+    macro: 3
+    plan_type: stato
+    geometry: mixed
+    description: "Linee e stazioni ferroviarie."
+    topics: [transportation]
+    torino_ref: [PIE-FERROVIE-STORICO, PIE-STAZIONI-FS, PIE-PTCP-STAZIONI]
+  METRO:
+    macro: 3
+    plan_type: stato
+    geometry: line
+    description: "Metropolitana (linee)."
+    topics: [transportation]
+    torino_ref: [PIE-MOB-METRO]
+  CICLABILI:
+    macro: 3
+    plan_type: stato
+    geometry: line
+    description: "Rete ciclabile e percorsi ciclopedonali."
+    topics: [transportation]
+    torino_ref: [PIE-MOB-CICLABILE]
+  SHARING:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Bike/car sharing."
+    topics: [transportation]
+    torino_ref: [PIE-MOB-SHARING]
+  RICARICA:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Colonnine di ricarica per veicoli elettrici."
+    topics: [transportation, utilitiesCommunication]
+    torino_ref: [PIE-MOB-RICARICA]
+  VIABILITA:
+    macro: 3
+    plan_type: stato
+    geometry: line
+    description: "Rete stradale gerarchica (autostrade, statali, provinciali, comunali) + grafo."
+    topics: [transportation]
+    torino_ref: [PIE-VIAB-AUTOSTRADE, PIE-VIAB-STATALI, PIE-VIAB-PROVINCIALI, PIE-VIAB-COMUNALI, PIE-GRAFO-TORINO]
+  SOSTA_ACCESSI:
+    macro: 3
+    plan_type: stato
+    geometry: mixed
+    description: "ZTL, aree pedonali, parcheggi, sensi unici, LOGES, aeroporti (regolazione urbana)."
+    topics: [transportation]
+    torino_ref: [PIE-MOB-ZTL, PIE-MOB-AREE-PEDONALI, PIE-MOB-PARK-BLU, PIE-MOB-PARK-CONTROLLATO, PIE-MOB-PARK-DISABILI, PIE-MOB-SENSI-UNICI, PIE-MOB-LOGES, PIE-MOB-AEROPORTI]
+  SERVIZI_ISTRUZIONE:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Scuole, formazione, università."
+    topics: [society, health]
+    torino_ref: [PIE-SERV-ISTRUZIONE]
+  SERVIZI_SANITA:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Sanità e assistenza (ospedali, ASL, farmacie, socio-assistenziale)."
+    topics: [health]
+    torino_ref: [PIE-SERV-SANITA]
+  SERVIZI_CULTURA_SPORT:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Cultura, sport, attrattori (musei, teatri, biblioteche, impianti, UNESCO)."
+    topics: [society, structure]
+    torino_ref: [PIE-SERV-CULTURA-SPORT]
+  COMMERCIO:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Attività commerciali, distretti, addensamenti, strutture di vendita."
+    topics: [economy]
+    torino_ref: [PIE-ECO-COMMERCIO]
+  MERCATI:
+    macro: 3
+    plan_type: stato
+    geometry: mixed
+    description: "Mercati, fiere, mostre-mercato, commercio su area pubblica."
+    topics: [economy]
+    torino_ref: [PIE-ECO-MERCATI]
+  POLI_PRODUTTIVI:
+    macro: 3
+    plan_type: stato
+    geometry: polygon
+    description: "Aree/ambiti produttivi, aziende principali, aree critiche."
+    topics: [economy]
+    torino_ref: [PIE-ECO-PRODUTTIVI]
+  OMI_VALORI:
+    macro: 3
+    plan_type: stato
+    geometry: polygon
+    description: "Valori immobiliari OMI (€/m²) per comune e per quartiere."
+    topics: [economy]
+    torino_ref: [PIE-OMI-COMUNI, PIE-OMI-QUARTIERI]
+  DEMOGRAFIA:
+    macro: 3
+    plan_type: stato
+    geometry: polygon
+    description: "Popolazione, densità, composizione (per zona statistica/comune)."
+    topics: [society, boundaries]
+    torino_ref: [PIE-DEMOGRAFIA]
+  ENERGIA:
+    macro: 3
+    plan_type: stato
+    geometry: mixed
+    description: "Impianti di produzione energia + reti (metanodotti/oleodotti, con fasce di rispetto)."
+    topics: [utilitiesCommunication, structure]
+    torino_ref: [PIE-ENERGIA-CENTRALI, PIE-RETI-ENERGETICHE]
+  INFRASTRUTTURE_AINOP:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Opere infrastrutturali censite AINOP (stato attuale)."
+    topics: [structure, transportation]
+    torino_ref: [ainop-infrastructure]
+
+  # ---- Macro 4 · Scenari futuri (operativo) -------------------------------
+  INVESTIMENTI_OPENCUP:
+    macro: 4
+    plan_type: operativo
+    geometry: polygon
+    description: "Aggregato CUP per comune (numero progetti, costi, finanziamenti)."
+    topics: [economy, planningCadastre]
+    torino_ref: [PIE-OPENCUP-COMUNI]
+  INTERVENTI:
+    macro: 4
+    plan_type: operativo
+    geometry: point
+    description: "Interventi geolocalizzati (OpenCUP, PNRR, PUMS, AINOP): opere puntuali."
+    topics: [planningCadastre, economy, transportation]
+    torino_ref: [PIE-INTERVENTI]
+  TRASFORMAZIONI:
+    macro: 4
+    plan_type: operativo
+    geometry: polygon
+    description: "Ambiti di trasformazione e progetti unitari (rigenerazione urbana)."
+    topics: [planningCadastre]
+    torino_ref: [PIE-PRG-TRASFORMAZIONI, PIE-PRG-PROGETTI-UNITARI]
+  PUMS_PROGRAMMATO:
+    macro: 4
+    plan_type: operativo
+    geometry: mixed
+    description: "Interventi e politiche del PUMS (mobilità sostenibile programmata)."
+    topics: [transportation]
+    torino_ref: [PIE-PUMS-ATTIVA, PIE-PUMS-COLLETTIVA, PIE-PUMS-INDIVIDUALE, PIE-PUMS-DOMANDA, PIE-PUMS-TECNOLOGIE]

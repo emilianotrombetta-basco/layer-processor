@@ -1,0 +1,8 @@
+# Layer_Processor — dipendenze (stesso interprete di sistema degli script Torino)
+PyYAML>=6.0        # registry (taxonomy, dictionary, sources)
+pyshp>=2.3         # lettura shapefile (stage_04 compose)
+shapely>=2.0       # geometrie / point-in-polygon / dissolve
+pyproj>=3.5        # riproiezione CRS → WGS84
+openpyxl>=3.1      # sorgenti .xlsx (PUMS, admin, ricerca fondi)
+# download (stage_02): si usa urllib della stdlib — 'requests' non richiesto.
+# Supabase (stage_05): 'psycopg2-binary' quando si implementerà il load.

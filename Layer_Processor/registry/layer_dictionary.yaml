@@ -1,0 +1,287 @@
+# ============================================================================
+# DIZIONARIO DEI LAYER — formulazione sorgente → classe canonica.
+# Governance come gli alias comuni (pipeline/aliases/NORMALIZATION_RULES.md):
+#   - curato a mano, versionato;
+#   - il matcher PROPONE, non fa auto-merge cieco;
+#   - i non riconosciuti finiscono in work/proposals/ per revisione → si estende qui.
+#
+# Ogni regola:
+#   canonical    chiave in canonical_taxonomy.yaml (obbligatoria)
+#   topic_in     (opz.) categorie ISO ammesse; restringe e alza la precisione
+#   any          almeno UNA di queste keyword (normalizzate: minuscolo, senza accenti)
+#   all          (opz.) TUTTE queste keyword devono essere presenti
+#   not_any      (opz.) se presente una di queste, la regola NON scatta
+#   confidence   high | medium | low
+#   examples     titoli reali osservati (documentazione + tracciabilità)
+#
+# Match: il titolo viene normalizzato e confrontato per sottostringa di token.
+# Punteggio = specificità (all/topic/lunghezza keyword) * peso confidence.
+# Le keyword sono in minuscolo senza accenti: "attivita", non "attività".
+# ============================================================================
+
+version: 1
+
+rules:
+
+  # ---- Economia -----------------------------------------------------------
+  - canonical: COMMERCIO
+    topic_in: [economy]
+    any: ["attivita commerciali", "esercizi commerciali", "insediamento commerciale",
+          "addensamenti", "distretti del commercio", "strutture commerciali",
+          "media struttura di vendita", "medie strutture", "polizia amministrativa",
+          "impianti di distribuzione carburanti", "distribuzione carburanti"]
+    confidence: high
+    examples: ["Attività commerciali", "Distretti del Commercio",
+               "Aree di insediamento commerciale consolidate ADDENSAMENTI",
+               "PTC 2 - Strutture commerciali", "IMPIANTI DI DISTRIBUZIONE CARBURANTI"]
+
+  - canonical: MERCATI
+    topic_in: [economy]
+    any: ["mercati", "mercato", "fiere", "fiera", "mostra mercato",
+          "commercio su area pubblica"]
+    confidence: high
+    examples: ["Mercati", "Mercati tematici periodici"]
+
+  - canonical: POLI_PRODUTTIVI
+    topic_in: [economy]
+    any: ["aree produttive", "ambiti produttivi", "aziende principali",
+          "aree critiche", "poli produttivi", "distretti industriali",
+          "insediamenti produttivi"]
+    confidence: high
+    examples: ["PTC 2 - Aree produttive principali", "PTC 2 - Ambiti produttivi",
+               "PTC 2 - Aziende principali", "PTC 2 - Aree critiche"]
+
+  - canonical: OMI_VALORI
+    topic_in: [economy]
+    any: ["omi", "valori immobiliari", "quotazioni immobiliari", "valore al metro"]
+    confidence: high
+    examples: ["Quotazioni OMI"]
+
+  # ---- Trasporti ----------------------------------------------------------
+  - canonical: VIABILITA
+    topic_in: [transportation]
+    any: ["viabilita", "strade statali", "strade provinciali", "strade comunali",
+          "autostrade", "rete stradale", "grafo stradale", "elemento stradale"]
+    not_any: ["traffico", "svr", "ciclabil", "ciclopedonal"]
+    confidence: high
+    examples: ["Viabilita 1:100.000 - Strade statali - Storico", "Grafo stradale"]
+
+  - canonical: CICLABILI
+    topic_in: [transportation]
+    any: ["ciclabile", "ciclabili", "ciclopedonal", "percorsi ciclabili",
+          "rete ciclabile", "bicipolitana"]
+    confidence: high
+    examples: ["Mobilità - Percorsi ciclabili",
+               "Rete ciclabile di interesse regionale"]
+
+  - canonical: METRO
+    topic_in: [transportation]
+    any: ["metropolitana"]
+    confidence: high
+    examples: ["Mobilità - Metropolitana - Linee"]
+
+  - canonical: FERROVIA
+    topic_in: [transportation]
+    any: ["ferrovia", "ferroviarie", "ferroviaria", "stazioni ferroviarie",
+          "linee ferroviarie", "rete ferroviaria"]
+    confidence: high
+    examples: ["PTC 2 - Stazioni ferroviarie"]
+
+  - canonical: RICARICA
+    topic_in: [transportation, utilitiesCommunication]
+    any: ["ricarica", "veicoli elettrici", "colonnine"]
+    confidence: high
+    examples: ["Mobilità - Stazioni ricarica veicoli elettrici"]
+
+  - canonical: SHARING
+    topic_in: [transportation]
+    any: ["sharing", "bike sharing", "car sharing"]
+    confidence: high
+    examples: ["Bike sharing"]
+
+  - canonical: TPL
+    topic_in: [transportation]
+    any: ["gtfs", "trasporto pubblico", "linee tpl", "fermate del trasporto"]
+    confidence: medium
+    examples: ["GTFS rete", "Fermate TPL"]
+
+  - canonical: SOSTA_ACCESSI
+    topic_in: [transportation]
+    any: ["ztl", "zone traffico limitato", "zona traffico limitato",
+          "aree pedonali", "area pedonale", "parcheggi", "parcheggio",
+          "sensi unici", "loges", "aeroporto", "aeroporti", "movicentri",
+          "nodi di interscambio", "interscambio", "sosta"]
+    confidence: high
+    examples: ["Mobilità - ZTL - Zone Traffico Limitato",
+               "Mobilità - Parcheggi per disabili",
+               "Mobilità - Parcheggi ad accesso controllato",
+               "PTC 2 - Movicentri"]
+
+  # ---- Ambiente e tutele --------------------------------------------------
+  - canonical: AREE_PROTETTE
+    topic_in: [environment, biota]
+    any: ["aree protette", "area protetta", "parchi", "parco naturale", "riserve",
+          "riserva naturale", "natura 2000", "rete natura", "sic ", "zsc", "zps",
+          "siti di importanza comunitaria", "zone speciali di conservazione"]
+    confidence: high
+    examples: ["Aree protette", "Siti Rete Natura 2000"]
+
+  - canonical: RETE_ECOLOGICA
+    topic_in: [environment, biota, planningCadastre]
+    any: ["corridoi ecologici", "rete ecologica", "connettivita ecologica",
+          "aree di valore ecologico", "tappe di attraversamento", "varchi ecologici",
+          "connessione ecologica", "corridoi di connessione", "nodi ecologici"]
+    confidence: high
+    examples: ["Corridoi ecologici", "Connettività ecologica",
+               "PTC 2 - Corridoi di connessione ecologica", "Ppr - Varchi ecologici (tav. P5)"]
+
+  - canonical: VINCOLI_PAESAGGISTICI
+    topic_in: [environment, planningCadastre, biota, elevation, society]
+    any: ["vincolo paesaggistico", "vincoli paesaggistici", "paesaggistico ambientale",
+          "bellezze", "ambiti di paesaggio", "unita di paesaggio", "beni paesaggistici",
+          "crinali", "vette", "aree di montagna", "specifico interesse geomorfologico",
+          "rilevanza paesaggistica", "interesse paesaggistico", "rilevanza visiva",
+          "bordi urbani", "fulcri del costruito", "belvedere", "luoghi di villeggiatura",
+          "patrimonio mondiale unesco", "bene ex l", "elementi caratterizzanti",
+          "elementi strutturanti", "struttura insediativa storica"]
+    confidence: medium
+    examples: ["Ppr - Aree ed elementi di specifico interesse geomorfologico e naturalistico con rilevanza visiva (tav. P4)",
+               "Ppr - Vette (tav. P4)", "Ppr - Aree di montagna (tav. P4)",
+               "Ppr - Elementi strutturanti i bordi urbani (tav. P4)",
+               "Ppr - Aree rurali di specifico interesse paesaggistico"]
+
+  - canonical: RISCHIO_IDRAULICO
+    topic_in: [inlandWaters, geoscientificInformation]
+    any: ["pgra", "pericolosita alluvioni", "pericolosita da alluvione", "aree allagabili",
+          "fasce fluviali", "fascia fluviale", "rischio idraulico", "alluvion"]
+    confidence: high
+    examples: ["PGRA - Aree allagabili", "PAI - Fasce fluviali"]
+
+  - canonical: DISSESTO_GEOLOGICO
+    topic_in: [geoscientificInformation]
+    any: ["frane", "frana", "dissesto", "aree inondabili", "aree instabili",
+          "crolli", "bdgeo", "valanghe", "colate"]
+    confidence: high
+    examples: ["BDGeo100 - Frane", "Aree inondabili", "Aree instabili"]
+
+  - canonical: VINCOLO_IDROGEOLOGICO
+    topic_in: [geoscientificInformation, inlandWaters, planningCadastre]
+    any: ["vincolo idrogeologico", "idrogeologico"]
+    confidence: high
+    examples: ["Vincolo idrogeologico"]
+
+  - canonical: ACQUE
+    topic_in: [inlandWaters]
+    any: ["reticolo idrografico", "corsi d'acqua", "corpi idrici", "laghi",
+          "torrenti", "fiumi", "acque superficiali"]
+    not_any: ["fasce", "pericolosita", "allagabili"]
+    confidence: medium
+    examples: ["Reticolo idrografico"]
+
+  - canonical: AGRICOLTURA
+    topic_in: [farming]
+    any: ["agricol", "uso del suolo", "capacita d'uso", "interesse agronomico",
+          "colture", "aree rurali"]
+    confidence: medium
+    examples: ["Aree agricole di interesse agronomico", "Uso del suolo"]
+
+  - canonical: ALLERTA_PROTEZIONE_CIVILE
+    any: ["allertamento", "aree di allerta", "sottoaree di allerta",
+          "zone di allerta", "protezione civile"]
+    confidence: high
+    examples: ["Aree e sottoaree di allerta"]
+
+  # ---- Servizi ------------------------------------------------------------
+  - canonical: SERVIZI_ISTRUZIONE
+    topic_in: [society, health, structure]
+    any: ["scuole", "scuola", "istruzione", "universita", "infanzia",
+          "asili", "asilo nido", "formazione professionale"]
+    confidence: high
+    examples: ["Scuole", "Servizi per l'infanzia"]
+
+  - canonical: SERVIZI_SANITA
+    topic_in: [health]
+    any: ["ospedali", "ospedale", "farmacie", "asl", "sanitar", "consultori",
+          "socio assistenziali", "socio-assistenziali", "presidi sanitari", "rsa"]
+    confidence: high
+    examples: ["Ospedali", "Farmacie", "Strutture socio-assistenziali"]
+
+  - canonical: SERVIZI_CULTURA_SPORT
+    topic_in: [society, structure]
+    any: ["musei", "museo", "teatri", "teatro", "biblioteche", "impianti sportivi",
+          "beni culturali", "unesco", "residenze sabaude", "cinema", "siti unesco"]
+    confidence: high
+    examples: ["Musei", "Impianti sportivi", "Beni culturali e ambientali PTC2"]
+
+  - canonical: DEMOGRAFIA
+    topic_in: [society, boundaries]
+    any: ["popolazione", "residenti", "densita abitativa", "demografi",
+          "stranieri", "zone statistiche"]
+    confidence: high
+    examples: ["Popolazione per zona statistica"]
+
+  # ---- Energia ------------------------------------------------------------
+  - canonical: ENERGIA
+    topic_in: [utilitiesCommunication, structure, environment]
+    any: ["centrali", "centrale idroelettrica", "metanodotti", "oleodotti",
+          "teleriscaldamento", "biomassa", "idroelettrica", "elettrodotti",
+          "reti energetiche", "gasdotto", "produzione di energia", "fonti rinnovabili",
+          "fotovoltaic", "impianti di produzione di energia", "cabine primarie"]
+    confidence: high
+    examples: ["PTC 2 - Centrali idroelettriche", "Metanodotti Storico", "Oleodotti",
+               "Impianti di produzione di energia da fonti rinnovabili"]
+
+  # ---- Regole e costruibilità --------------------------------------------
+  - canonical: CATASTO
+    topic_in: [planningCadastre]
+    any: ["catasto", "catastale", "fogli di mappa", "particelle catastali"]
+    confidence: high
+    examples: ["Fogli catastali"]
+
+  - canonical: PRG_EDIFICI_STORICI
+    topic_in: [planningCadastre, structure]
+    any: ["edifici storici", "edifici di valore storico", "centri storici",
+          "nuclei storici", "patrimonio edilizio storico", "beni storici"]
+    confidence: medium
+    examples: ["Edifici di interesse storico"]
+
+  - canonical: PRG_ZONING
+    topic_in: [planningCadastre]
+    any: ["piano regolatore", "prgc", "zonizzazione", "azzonamento",
+          "destinazione d'uso", "zone urbanistiche", "ambiti normativi",
+          "mosaicatura prg", "prg vigente"]
+    not_any: ["edifici storici", "trasformazione", "catasto"]
+    confidence: medium
+    examples: ["PRG - Zonizzazione", "Mosaicatura PRG"]
+
+  - canonical: TRASFORMAZIONI
+    topic_in: [planningCadastre]
+    any: ["ambiti di trasformazione", "aree di trasformazione", "progetti unitari",
+          "rigenerazione urbana", "programmi complessi"]
+    confidence: high
+    examples: ["Ambiti di trasformazione", "Progetti unitari"]
+
+  # ---- Scenari futuri / operativo (spesso nazionale) ----------------------
+  - canonical: INVESTIMENTI_OPENCUP
+    any: ["opencup", "cup localizzati", "cup per comune"]
+    confidence: high
+    examples: ["OpenCUP"]
+
+  - canonical: INTERVENTI
+    any: ["cup", "opere pubbliche", "interventi finanziati", "progetti finanziati",
+          "opencoesione", "programmi operativi"]
+    not_any: ["opencup"]
+    confidence: low
+    examples: ["Interventi PNRR", "Progetti OpenCoesione"]
+
+  - canonical: PUMS_PROGRAMMATO
+    topic_in: [transportation]
+    any: ["pums", "piano urbano della mobilita", "mobilita sostenibile"]
+    confidence: high
+    examples: ["PUMS - interventi"]
+
+  - canonical: INFRASTRUTTURE_AINOP
+    any: ["ainop", "anagrafe opere", "anagrafe nazionale opere",
+          "opere pubbliche censite"]
+    confidence: high
+    examples: ["AINOP - infrastrutture"]

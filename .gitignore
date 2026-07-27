@@ -1,0 +1,20 @@
+# === Workspace "espansione del dominio" ===
+# Dati pesanti e repository annidati: NON versionati in questo repo.
+Nord/
+Sources/
+Geography_Amministrativi/
+Geography_Locations/
+mobilitylens-react/
+pipeline/
+tools/node_modules/
+
+# File di lavoro / binari
+*.xlsx
+~$*
+.DS_Store
+.claude/
+__pycache__/
+*.pyc
+
+# I generati del Layer_Processor sono gestiti dal suo .gitignore
+# (Layer_Processor/{raw,work,out,state} restano fuori).
