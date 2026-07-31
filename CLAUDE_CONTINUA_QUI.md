@@ -7,7 +7,55 @@
 
 ---
 
-## 🔶 AGGIORNAMENTO 2026-07-31 quinques (SDMX + pendolarismo + motore catasto) — leggi prima
+## 🔶 AGGIORNAMENTO 2026-07-31 sexies (+4 fonti: toponimi/ISPRA idrogeo/ACI/POSAS) — leggi prima
+
+**Niente committato dopo il commit `4de3da8` (branch feat/kb-nazionale-adapters-catasto).**
+
+- **n_toponimi_italia** (http_download) attivo: GeoPackage IGM `geonames.gpkg` (~586 MB,
+  risorsa unica dal CKAN dati.gov.it). Non scaricato nel test (grande).
+- **n_ispra_idrogeo** (http_download) attivo: API REST `idrogeo.isprambiente.it/api/pir/comuni`
+  = indice 7899 comuni (JSON, 2.2 MB). Gli INDICATORI di rischio per-comune sono in
+  `/api/pir/comuni/{uid}` → arricchimento in compose.
+- **n_aci_opendata** (http_download) attivo e testato: Autoritratto 2023 (parco veicoli)
+  + Annuario 2024, zip OD diretti da aci.gov.it.
+- **n_istat_posas** (html_resources) attivo: demo.istat.it pubblica ~112 zip PER PROVINCIA
+  (link diretti nella pagina) → discover ne trova 107. Popolazione età/sesso 1/1/2026.
+- **FIX estrazione zip best-effort** in `http_download._extract_zip`: `stdin=DEVNULL` +
+  `check=False`; una voce non estraibile (es. nome file con accento → write error di
+  unzip) ora dà `extract_warning`, NON fa fallire il download. (Sbloccava ACI.)
+
+**Catalogo "Fonti": 49/77 scaricabili. Delle 27 fonti KB nuove: 15 attive.**
+
+### +4 crackate col BROWSER (ispezione link/JS) e cablate
+- **n_mef_irpef** (http_download): CSV comunale 2024 diretto
+  `finanze.gov.it/.../v_4_0_0/contenuti/Redditi_..._comunale_CSV_2024.zip` → DEMOGRAFIA.
+- **n_mef_immobili_pubblici** (html_resources): 30 zip per categoria PA da
+  de.mef.gov.it/.../dati_immobili_2023.html (pattern `Imm_.*_2023.zip`) → ANALISI_URBANISTICA.
+- **n_ispra_suolo** (http_download): XLSX `consumo_di_suolo_estratto_dati_2025_anni_2006_2024.xlsx`
+  (regionale/prov/comunale) → ANALISI_URBANISTICA.
+- **n_istat_basi_territoriali** (html_resources): 20 shapefile regione sezioni 2021
+  (`istat.it/storage/cartografia/basi_territoriali/2021/R<NN>_21.zip`) → geometria join censimento.
+METODO browser che funziona: naviga la pagina → `javascript_exec` estrai gli <a> con
+href .csv/.zip → se non ci sono, `read_network_requests` per le XHR → cabla.
+
+### + n_catasto_tn cablato (browser): OPENkat SHP intera provincia (~792 MB)
+`export_semestrale_VL_SGC/2039_catasto_shp.zip` → SEMAFORO. Attivo (non scaricato, grande).
+
+**Catalogo: 50/77 scaricabili. Delle 27 KB nuove: 16 attive.**
+
+### Restano ~11 — TAIL DURO (serve tecnica diversa, non solo http_download)
+- **WAF/nega navigazione**: ANAC ("Request Rejected"), ISPRA rifiuti (catasto-rifiuti nega).
+- **Auth/API complessa**: colonnine PUN (AWS API Gateway + OAuth in config.json, oppure
+  feature service ArcGIS su hub-pun-gse.maps.arcgis.com da individuare).
+- **SPARQL/RDF (serve adapter `sparql` nuovo)**: cultura_on, cultura_dataset_locali, ArCo
+  (endpoint dati.cultura.gov.it/sparql).
+- **SPA con export via interazione**: RUNTS, SIOPE, AGCOM, censimento_comuni (MUN).
+- **SDMX lento**: turismo (id dataflow da trovare, server lento).
+- **on-demand**: catasto_inspire (motore `lib/catasto_inspire.py` pronto).
+
+---
+
+## 🔶 AGGIORNAMENTO 2026-07-31 quinques (SDMX + pendolarismo + motore catasto)
 
 **Niente committato.**
 

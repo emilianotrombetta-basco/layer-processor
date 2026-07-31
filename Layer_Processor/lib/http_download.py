@@ -124,14 +124,26 @@ def _filename_for(item: dict[str, Any]) -> str:
     return tail or f"{item['key']}.bin"
 
 
-def _extract_zip(archive: Path, dest: Path) -> list[str]:
-    """Estrae con l'unzip di sistema (gestisce Deflate64). Ritorna i file estratti."""
+def _extract_zip(archive: Path, dest: Path) -> tuple[list[str], str | None]:
+    """Estrae con l'unzip di sistema (gestisce Deflate64). Best-effort: una singola
+    voce problematica (es. nome file con accento non estraibile) NON fa fallire tutto.
+    Ritorna (file estratti, eventuale warning). ``stdin=DEVNULL`` evita il blocco sul
+    prompt "Continue?" di unzip su write error."""
     dest.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    proc = subprocess.run(
         ["unzip", "-o", "-q", str(archive), "-d", str(dest)],
-        check=True, capture_output=True,
+        check=False, capture_output=True, stdin=subprocess.DEVNULL,
     )
-    return [str(p.relative_to(dest.parent)) for p in sorted(dest.rglob("*")) if p.is_file()]
+    files = [
+        str(p.relative_to(dest.parent))
+        for p in sorted(dest.rglob("*")) if p.is_file()
+    ]
+    warning = None
+    if proc.returncode != 0:
+        warning = (proc.stderr or b"").decode("utf-8", "replace").strip()[:200] or (
+            f"unzip exit {proc.returncode}"
+        )
+    return files, warning
 
 
 def download(
@@ -164,6 +176,7 @@ def download(
         sha = None
         size = destination.stat().st_size if destination.exists() else 0
         extracted: list[str] = []
+        extract_warning: str | None = None
         try:
             if refresh or not destination.exists():
                 item_dir.mkdir(parents=True, exist_ok=True)
@@ -186,10 +199,7 @@ def download(
             if item.get("extract") and destination.suffix.lower() == ".zip":
                 extract_dir = item_dir / "extracted"
                 if refresh or status == "downloaded" or not extract_dir.exists():
-                    extracted = _extract_zip(destination, extract_dir)
-        except subprocess.CalledProcessError as exc:
-            status = "failed"
-            error = f"unzip: {exc.stderr.decode('utf-8', 'replace')[:200] if exc.stderr else exc}"
+                    extracted, extract_warning = _extract_zip(destination, extract_dir)
         except Exception as exc:  # noqa: BLE001 — rete/IO: registriamo e proseguiamo
             status = "failed"
             error = str(exc)
@@ -206,6 +216,8 @@ def download(
             result["local_path"] = str(destination.relative_to(output_root))
         if extracted:
             result["extracted_files"] = len(extracted)
+        if extract_warning:
+            result["extract_warning"] = extract_warning
         if error:
             result["error"] = error
         results.append(result)

@@ -1782,19 +1782,26 @@ sources:
   - key: n_toponimi_italia
     livello: nazionale
     ente: "Database dei toponimi d'Italia (dati.gov.it)"
-    kind: dataset
-    adapter: null
-    proposed_adapter: dati_gov_dataset
+    kind: download
+    adapter: http_download
     url: "https://www.dati.gov.it/view-dataset/dataset?id=c4e7e889-92b0-4f52-b4cb-e3b003a737d0"
     dataset_id: "c4e7e889-92b0-4f52-b4cb-e3b003a737d0"
     topic: geographicalNames
     plan_types: [stato]
-    feeds_target: null   # proposto: PUNTI_INTERESSE / riferimento geografico
-    status: todo
+    feeds_target: null   # riferimento geografico / geocoding (non un layer a sé)
+    download_items:
+      - key: geonames
+        title: "Toponimi d'Italia — GeoPackage IGM (geonames)"
+        url: "https://igmi.org/porta-magna/predef/geonames.gpkg"
+        filename: geonames.gpkg
+        extract: false
+        format: gpkg
+    status: active
     notes: >
-      Database dei toponimi d'Italia. USO DA CHIARIRE (nota utente: "non ho ben
-      capito come usarlo"). Potenziale base di geocoding/nomi di luogo; da valutare
-      il contenuto (località, idronimi, oronimi?) prima di assegnare un target.
+      Database dei toponimi d'Italia = GeoPackage IGM (geonames.gpkg, risorsa unica
+      dal dataset CKAN dati.gov.it). Base di geocoding / nomi di luogo (località,
+      idronimi, oronimi). Scaricato via http_download; il GPKG si legge con
+      geopandas/fiona in fase di normalizzazione. Riferimento geografico trasversale.
 
   - key: n_anncsu
     livello: nazionale
@@ -1837,19 +1844,26 @@ sources:
     province: "TN"
     ente: "Provincia Autonoma di Trento — Catasto geometrico (TrentinoDigitale)"
     kind: download
-    adapter: null
-    proposed_adapter: catasto_tn
+    adapter: http_download
     url: "https://catastotn.tndigit.it/scarico-catasto-geometrico/it/index.html"
     topic: planningCadastre
     plan_types: [stato]
     planning_instruments: [Catasto]
     feeds_target: SEMAFORO_EDIFICABILITA
-    status: todo
+    download_items:
+      - key: catasto_geometrico_tn_shp
+        title: "Catasto geometrico Trentino — intera provincia (SHP, export semestrale)"
+        url: "https://catastotn.tndigit.it/export_semestrale_VL_SGC/2039_catasto_shp.zip"
+        filename: catasto_tn_shp.zip
+        extract: true
+        format: zip
+    status: active
     notes: >
-      Colma il buco catastale del Trentino (assente dal dataset INSPIRE nazionale
-      per il catasto tavolare). Scarico del catasto geometrico da TrentinoDigitale.
-      NB Alto Adige/Bolzano: fonte di scarico non trovata → per ora lasciata vuota
-      (nessuna entry, da cercare in futuro).
+      Colma il buco catastale del Trentino (assente dal dataset INSPIRE nazionale per
+      il catasto tavolare). OPENkat/TrentinoDigitale: SHP dell'INTERA provincia
+      (~792 MB, export semestrale) o per singola C.C. (~1.6 MB). Base geometrica per
+      il semaforo. NB Alto Adige/Bolzano: fonte di scarico non trovata → vuota.
+      (URL trovato via ispezione browser.)
 
   - key: n_agcom_connettivita
     livello: nazionale
@@ -1947,17 +1961,26 @@ sources:
   - key: n_istat_basi_territoriali
     livello: nazionale
     ente: "ISTAT — Basi territoriali e variabili censuarie (sezioni di censimento)"
-    kind: download
-    adapter: null
-    proposed_adapter: istat_download
+    kind: html_resources
+    adapter: html_resources
     url: "https://www.istat.it/notizia/basi-territoriali-e-variabili-censuarie/"
     topic: boundaries
     plan_types: [stato]
     feeds_target: null   # geometria di riferimento (join con censimento)
-    status: todo
+    html_resources:
+      - key: sezioni_2021_shp
+        title: "Basi territoriali 2021 — sezioni di censimento (shapefile per regione)"
+        page: "https://www.istat.it/notizia/basi-territoriali-e-variabili-censuarie/"
+        base: "https://www.istat.it/storage/cartografia/basi_territoriali/2021/"
+        pattern: 'R[0-9]+_21\.zip$'
+        limit: 25
+        extract: true
+    status: active
     notes: >
-      Geometrie delle sezioni di censimento + variabili censuarie. Base geografica
-      per agganciare i dati censuari sub-comunali (n_istat_censimento_sezioni).
+      Geometrie delle sezioni di censimento 2021 (shapefile per regione, R<NN>_21.zip
+      da istat.it/storage/cartografia/basi_territoriali/2021/). SEZ21_ID aggancia i
+      dati sub-comunali di n_istat_censimento_sezioni. Base geografica di riferimento
+      (non un layer a sé). (URL trovati via ispezione browser.)
 
   - key: n_anac_opendata
     livello: nazionale
@@ -1981,19 +2004,27 @@ sources:
   - key: n_istat_posas
     livello: nazionale
     ente: "ISTAT Demografia — POSAS (popolazione residente per età e sesso)"
-    kind: download
-    adapter: null
-    proposed_adapter: istat_demo
-    url: "https://demo.istat.it"
+    kind: html_resources
+    adapter: html_resources
+    url: "https://demo.istat.it/app/?a=2026&i=POS"
     topic: society
     reference_date: "2026-01-01"
     plan_types: [stato]
     feeds_target: DEMOGRAFIA
-    status: todo
+    html_resources:
+      - key: posas_2026
+        title: "POSAS 2026 — popolazione per età e sesso (zip per provincia)"
+        page: "https://demo.istat.it/app/?a=2026&i=POS"
+        pattern: 'POSAS_2026_it_[0-9]+.*\.zip$'
+        limit: 130
+        extract: true
+    status: active
     notes: >
       Stima ufficiale popolazione residente per età e sesso (POSAS) al 1/1/2026 +
-      indici demografici (vecchiaia ~190, dipendenza ~58) e piramide delle età.
-      Alimenta DEMOGRAFIA.
+      indici demografici (vecchiaia ~190, dipendenza ~58). demo.istat.it pubblica
+      ~112 zip PER PROVINCIA (link diretti nella pagina, non SPA) → html_resources
+      li scarica ed estrae tutti. Dati comunali per età/sesso. Alimenta DEMOGRAFIA
+      (piramide età + indici, più recenti del censimento 2023).
 
   - key: n_mimit_carburanti
     livello: nazionale
@@ -2071,17 +2102,25 @@ sources:
   - key: n_mef_immobili_pubblici
     livello: nazionale
     ente: "MEF — Censimento immobili pubblici (fabbricati e terreni)"
-    kind: download
-    adapter: null
-    proposed_adapter: mef_immobili
-    url: "https://www.de.mef.gov.it/it/attivita_istituzionali/patrimonio_pubblico/censimento_immobili_pubblici/open_data_immobili/"
+    kind: html_resources
+    adapter: html_resources
+    url: "https://www.de.mef.gov.it/it/attivita_istituzionali/patrimonio_pubblico/censimento_immobili_pubblici/open_data_immobili/dati_immobili_2023.html"
     topic: planningCadastre
     plan_types: [stato]
     feeds_target: ANALISI_URBANISTICA
-    status: todo
+    html_resources:
+      - key: immobili_2023
+        title: "Beni immobili pubblici 2023 — zip per categoria PA"
+        page: "https://www.de.mef.gov.it/it/attivita_istituzionali/patrimonio_pubblico/censimento_immobili_pubblici/open_data_immobili/dati_immobili_2023.html"
+        pattern: 'Imm_.*_2023\.zip$'
+        limit: 30
+        extract: true
+    status: active
     notes: >
-      Beni immobili pubblici dichiarati al MEF (fabbricati e terreni). Da
-      agganciare al catasto per la geometria. Alimenta ANALISI_URBANISTICA.
+      Beni immobili pubblici dichiarati al MEF (fabbricati e terreni), al 31/12/2023.
+      Zip diretti per categoria di PA (Ministeri, Amm. Locali, Province/Città Metrop.,
+      Enti SSN, ...) da de.mef.gov.it/modules/.../opendata_imm/. Da agganciare al
+      catasto per la geometria. Alimenta ANALISI_URBANISTICA.
 
   - key: n_istat_pendolarismo
     livello: nazionale
@@ -2150,17 +2189,25 @@ sources:
   - key: n_mef_irpef
     livello: nazionale
     ente: "MEF — Dipartimento delle Finanze: dichiarazioni IRPEF e fiscalità locale per comune"
-    kind: portal
-    adapter: null
-    proposed_adapter: mef_finanze
-    url: "https://www1.finanze.gov.it/finanze/analisi_stat/public/index.php?search_class%5b0%5d=cCOMUNE&opendata=yes"
+    kind: download
+    adapter: http_download
+    url: "https://www.finanze.gov.it/it/statistiche-fiscali/open-data-comunale-principali-variabili-irpef/"
     topic: economy
     plan_types: [stato]
     feeds_target: DEMOGRAFIA   # reddito/fiscalità come attributo socio-economico
-    status: todo
+    download_items:
+      - key: irpef_comunale_2024
+        title: "Redditi e principali variabili IRPEF su base comunale — CSV 2024"
+        url: "https://www1.finanze.gov.it/finanze/analisi_stat/public/v_4_0_0/contenuti/Redditi_e_principali_variabili_IRPEF_su_base_comunale_CSV_2024.zip"
+        filename: IRPEF_comunale_CSV_2024.zip
+        extract: true
+        format: zip
+    status: active
     notes: >
-      Dichiarazioni IRPEF, fasce di reddito e fiscalità locale per comune (vari DB
-      open data del Dip. Finanze). Attributo socio-economico comunale.
+      Dichiarazioni IRPEF, fasce di reddito e fiscalità per comune (anno d'imposta
+      dell'anno indicato). Zip CSV diretto dal Dip. Finanze (esiste anche il
+      sub-comunale e altri anni: aggiungibili come download_items). Attributo
+      socio-economico comunale → DEMOGRAFIA. (URL trovato via ispezione browser.)
 
   - key: n_salute_presidi
     livello: nazionale
@@ -2237,34 +2284,49 @@ sources:
   - key: n_ispra_suolo
     livello: nazionale
     ente: "ISPRA — Consumo di suolo"
-    kind: portal
-    adapter: null
-    proposed_adapter: ispra
-    url: "https://www.isprambiente.gov.it/it/attivita/suolo-e-territorio/suolo/il-consumo-di-suolo"
+    kind: download
+    adapter: http_download
+    url: "https://www.isprambiente.gov.it/it/attivita/suolo-e-territorio/suolo/il-consumo-di-suolo/i-dati-sul-consumo-di-suolo"
     topic: environment
     plan_types: [stato]
     feeds_target: ANALISI_URBANISTICA
-    status: todo
+    download_items:
+      - key: consumo_suolo_2006_2024
+        title: "Consumo di suolo — estratto dati 2025 (regionale/provinciale/comunale, 2006-2024)"
+        url: "https://www.isprambiente.gov.it/it/attivita/suolo-e-territorio/suolo/il-consumo-di-suolo/consumo_di_suolo_estratto_dati_2025_anni_2006_2024.xlsx"
+        filename: consumo_suolo_2006_2024.xlsx
+        extract: false
+        format: xlsx
+    status: active
     notes: >
-      Consumo di suolo per comune (ISPRA). Parte del "profilo ambientale" del
-      comune. NB: parte di questi dati sono GIÀ presenti in altre fonti (nota
-      utente: "questo già lo abbiamo in parte") → verificare sovrapposizioni.
-      Alimenta ANALISI_URBANISTICA.
+      Consumo di suolo per comune (ISPRA/SNPA), estratto dati 2025 (serie 2006-2024),
+      XLSX con fogli regionale/provinciale/comunale. Parte del "profilo ambientale"
+      del comune. Alimenta ANALISI_URBANISTICA. (URL trovato via ispezione browser.)
 
   - key: n_ispra_idrogeo
     livello: nazionale
     ente: "ISPRA — IdroGEO (rischio idrogeologico, frane e alluvioni)"
-    kind: portal
-    adapter: null
-    proposed_adapter: ispra
+    kind: api
+    adapter: http_download
     url: "https://idrogeo.isprambiente.it/app/"
+    api_base: "https://idrogeo.isprambiente.it/api"
     topic: geoscientificInformation
     plan_types: [stato]
     feeds_target: RISCHI_PERICOLOSITA
-    status: todo
+    download_items:
+      - key: comuni_index
+        title: "IdroGEO — indice comuni (7899, con estensione geografica)"
+        url: "https://idrogeo.isprambiente.it/api/pir/comuni"
+        filename: idrogeo_comuni.json
+        extract: false
+        format: json
+    status: active
     notes: >
-      Piattaforma IdroGEO: pericolosità/rischio da frana (IFFI) e idraulico per
-      comune. Alimenta RISCHI_PERICOLOSITA. Verificare API/export della piattaforma.
+      Piattaforma IdroGEO (rischio frane IFFI + idraulico). L'API REST espone
+      /api/pir/comuni = indice dei 7899 comuni (uid, nome, provincia/regione,
+      extent). Scaricato via http_download. NB: gli INDICATORI di rischio per-comune
+      (aree/popolazione a pericolosità) sono in /api/pir/comuni/{uid} → arricchimento
+      per-comune in fase di compose (7899 chiamate o export dedicato). → RISCHI_PERICOLOSITA.
 
   - key: n_ispra_rifiuti
     livello: nazionale
@@ -2317,14 +2379,28 @@ sources:
   - key: n_aci_opendata
     livello: nazionale
     ente: "ACI — Open data (parco circolante, incidentalità, nuove iscrizioni)"
-    kind: portal
-    adapter: null
-    proposed_adapter: aci_opendata
+    kind: download
+    adapter: http_download
     url: "https://aci.gov.it/attivita-e-progetti/studi-e-ricerche/open-data/"
     topic: transportation
     plan_types: [stato]
     feeds_target: MOBILITA_ACCESSIBILITA
-    status: todo
+    download_items:
+      - key: autoritratto_2023
+        title: "ACI Autoritratto 2023 — parco veicoli per comune/provincia (OD)"
+        url: "https://aci.gov.it/app/uploads/2024/06/Autoritratto-2023-OD.zip"
+        filename: Autoritratto-2023-OD.zip
+        extract: true
+        format: zip
+      - key: annuario_statistico_2024
+        title: "ACI Annuario Statistico 2024 (OD)"
+        url: "https://aci.gov.it/app/uploads/2024/06/Annuario_Statistico-2024_OD.zip"
+        filename: Annuario_Statistico-2024_OD.zip
+        extract: true
+        format: zip
+    status: active
     notes: >
-      Parco veicoli circolante, incidentalità stradale e nuove iscrizioni per
-      comune/provincia. Alimenta MOBILITA_ACCESSIBILITA.
+      Parco veicoli circolante (Autoritratto, per comune/provincia) + statistiche
+      (Annuario). Zip OD diretti da aci.gov.it. Alimenta MOBILITA_ACCESSIBILITA.
+      NB: incidentalità dettagliata e "Localizzazione Strade Provinciali" sono zip
+      separati sulla stessa pagina, aggiungibili come ulteriori download_items.
