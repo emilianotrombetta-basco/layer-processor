@@ -11,7 +11,9 @@
 #   livello     regione | provincia | comune
 #   ente        nome leggibile
 #   region      regione ISTAT (nome italiano, coerente col DB)
-#   province    (per livello provincia/comune) sigla o codice
+#   region_istat codice ISTAT regione a 2 cifre, collegato a territorial_registry
+#   province    (per livello provincia/comune) sigla
+#   province_istat codice ISTAT provincia a 3 cifre
 #   comune_istat (per livello comune) codice 6 cifre
 #   kind        geoportal_download | ckan | arcgis_rest | wfs | file_catalog | national_dataset
 #   url         punto di ingresso (pagina opendata / endpoint / catalogo)
@@ -21,6 +23,91 @@
 # ============================================================================
 
 version: 1
+planning_profiles_file: regional_planning_profiles.yaml
+
+# Ripartizione amministrativa e alias usati per validare gli scope delle fonti.
+# Il workbook resta la sorgente tabellare: non viene duplicato qui in migliaia
+# di record. I codici sono identificatori testuali e conservano gli zeri iniziali.
+territorial_registry:
+  version: 1
+
+  hierarchy:
+    file: "../../Geography_Amministrativi/province+regioni+comuni.xlsx"
+    province_sheet: Province
+    municipality_sheets: [Comuni Nord, Comuni Sud]
+    province_fields:
+      name: Nome
+      sigla: Sigla
+      codice_istat: ISTAT
+      region_name: Regione
+      latitude: Latitudine
+      longitude: Longitudine
+    municipality_fields:
+      province_istat: codice_prov_istat
+      province_sigla: sigla_provincia
+      province_name: provincia
+      region_name: regione
+      municipality_suffix: codice_comu_istat
+      municipality_name: comune
+      latitude: lat
+      longitude: lng
+      province_capital: capoluogo_prov
+      region_capital: capoluogo_reg
+    code_rules:
+      province_istat: "left_pad(codice_prov_istat, 3, '0')"
+      comune_istat: "province_istat + left_pad(codice_comu_istat, 3, '0')"
+      source_key_regione: "r_<identificatore_fonte>"
+      source_key_provincia: "p_<sigla_lower>"
+      source_key_comune: "c_<comune_istat>"
+    observed_counts:
+      regions: 20
+      provinces: 110
+      municipality_rows_raw: 8092
+      municipality_codes_raw_unique: 8091
+    notes: >
+      Le righe comunali includono denominazioni storiche e varianti. Non vanno
+      considerate automaticamente comuni correnti: prima si applica il dizionario
+      alias sottostante, con scope regione+sigla provincia.
+
+  municipality_aliases:
+    file: "../../pipeline/aliases/comune_aliases.csv"
+    lookup_key: [scope_region, scope_prov_sigla, alias_norm]
+    canonical_fields: [canonical_istat, canonical_name]
+    alias_types:
+      historical_fusion: 294
+      spelling_variant: 28
+      bilingual: 226
+    rows: 548
+    policy:
+      - "normalizzare il nome con lib.normalize.norm_name"
+      - "cercare l'alias nello scope regione+provincia"
+      - "usare canonical_istat come codice definitivo"
+      - "non inventare match se regione o provincia non coincidono"
+      - "in assenza di match consultare comune_exceptions.csv e poi segnalare"
+
+  # Mapping stabile nome regione → codice ISTAT. Serve a completare il workbook,
+  # nel quale la regione è indicata per nome.
+  regions:
+    "01": Piemonte
+    "02": "Valle d'Aosta"
+    "03": Lombardia
+    "04": "Trentino-Alto Adige"
+    "05": Veneto
+    "06": "Friuli-Venezia Giulia"
+    "07": Liguria
+    "08": "Emilia-Romagna"
+    "09": Toscana
+    "10": Umbria
+    "11": Marche
+    "12": Lazio
+    "13": Abruzzo
+    "14": Molise
+    "15": Campania
+    "16": Puglia
+    "17": Basilicata
+    "18": Calabria
+    "19": Sicilia
+    "20": Sardegna
 
 sources:
 
@@ -29,82 +116,2215 @@ sources:
     livello: regione
     ente: "Regione Piemonte — Geoportale"
     region: "Piemonte"
+    region_istat: "01"
     kind: geoportal_download
+    adapter: piemonte_catalog
+    inventory_file: piemonte_reference_catalog.csv
+    inventory_version: 1
+    expected_dataset_count: 445
+    dashboard_batch_size: 25
+    download_workers: 3
     url: "https://www.datigeo-piem-download.it/"
     plan_types: [regolatore, stato]
+    planning_instruments: [PTR, PPR, PAI, PRG, PRGC]
     status: active
     notes: >
-      Pilota. Catalogo già scaricato in ../Nord/piemonte/_catalog.csv (946 dataset,
-      schema uuid,title,topic,url,local_path_or_status,bytes). Prefissi uuid:
-      r_piemon (regione), p_<sigla> (province), riuso diretto per il golden test.
+      Le 445 risorse regionali usate dal pilota sono inventariate nel registry:
+      da installazione vuota Scoperta ricrea work/catalog/r_piemon.csv e Download
+      riscarica i file dagli URL ufficiali in raw/regione/r_piemon. Il vecchio
+      ../Nord/piemonte resta soltanto il golden test e non è un prerequisito.
+
+  - key: r_vda
+    livello: regione
+    ente: "Regione Autonoma Valle d'Aosta — Geoportale SCT"
+    region: "Valle d'Aosta"
+    region_istat: "02"
+    kind: geoportal_download
+    adapter: vda_platform
+    # I servizi domini1/Public sono token-gated (HTTP 499), ma il proxy pubblico
+    # INVA/config/config.ashx inietta il token lato server: si scaricano liberamente
+    # TUTTI i ~56 servizi Public (Ambiti, PAI, Dissesti, Geologia, PRG…) via query
+    # ArcGIS paginate. Nessun token, nessuna iscrizione a SCT-Outil.
+    proxy: "https://mappe.regione.vda.it/INVA/config/config.ashx?"
+    public_services: "https://mappe.regione.vda.it/domini1/rest/services/Public"
+    local_root: "../Nord/Valle d'aosta"   # fallback ingest locale (adapter vda_local)
+    url: "https://mappe.regione.vda.it/pub/geoCartoSCT/"
+    catalog_endpoint: >
+      https://mappe.regione.vda.it/INVA/component/GlobalPage/Repertorio_Json.asp?tipo=CARICAREPERTORIO&APPCODE=GeoCartoSCT
+    layer_inventory_url: >
+      https://sct-outil.regione.vda.it/SCTProfessional/repertcarto/call/json/get_rows_alldascaricare
+    download_inventory_url: >
+      https://sct-outil.regione.vda.it/SCTProfessional/repertcarto/call/json/get_rows_rep_multidownload?codfis=&serv=&liv=
+    download_portal: "https://sct-outil.regione.vda.it/SCTProfessional/repertcarto/allrepertori"
+    arcgis_token_env: VDA_ARCGIS_TOKEN
+    dashboard_batch_size: 5
+    expected_service_count: 44
+    expected_services:
+      - "Ambiti Inedificabili"
+      - "Ambiti Territoriali FEASR"
+      - "Aree Tutelate"
+      - "Attività Agricole"
+      - "Carta dei Suoli (Pedologica)"
+      - "Carta Geologica Continua"
+      - "Carta PAI (Piano Assetto Idrogeologico)"
+      - "Carta Tecnica Regionale Numerica"
+      - "Carte Storiche"
+      - "Catasto Dissesti"
+      - "Catasto Energetico"
+      - "Catasto Ghiacciai"
+      - "Catasto Valanghe"
+      - "Classificazione Zonizzazione Acustica"
+      - "Concessioni di Derivazione d'Acqua"
+      - "Consorzi di Miglioramento Fondiario"
+      - "Copertura Suolo"
+      - "Criteri di Selezione per la Verifica di Assoggettabilità a VIA - Allegato F, l.r. 12/2009"
+      - "Dati Institut Agricole Régional"
+      - "Demanio Idrico"
+      - "Direttiva Alluvioni Complessiva Quadro Conoscitivo PAI"
+      - "Edifici e Viabilità da Ortofoto 2018"
+      - "Eliski"
+      - "Fasce di Rispetto Aeroportuali"
+      - "Forestazione"
+      - "Gestione Inerti, Rifiuti e Attività Estrattive/Minerarie"
+      - "Idrografia"
+      - "Incendi Boschivi"
+      - "Limiti Amministrativi"
+      - "Ludopatia"
+      - "Modello Digitale del Terreno e Carte Derivate"
+      - "Monitoraggi ARPA"
+      - "Oleodotto Dismesso ENI"
+      - "Piani Regolatori - Carte Motivazionali"
+      - "Piani Regolatori - Carte Prescrittive"
+      - "Piano Regionale Attività Estrattive (PRAE)"
+      - "Piste Ciclabili"
+      - "Quadri d'Unione"
+      - "Rete in Fibra Ottica"
+      - "Sistema Idrico Integrato"
+      - "Uso Suolo"
+      - "Viabilità Globale"
+      - "Vincoli Soprintendenza"
+      - "Vincolo Idrogeologico"
+    ptp:
+      viewer_url: "https://mappe.regione.vda.it/pub/geonavsct/index.html?repertorio=PTP_Vincoli"
+      selection_name: PTP_Vincoli
+      catalog_endpoint: >
+        https://mappe.regione.vda.it/INVA/component/GlobalPage/Repertorio_Json.asp?tipo=CARICAREPERTORIONOMEPUB&APPCODE=GeoNavSCT&NOME=PTP_Vincoli
+      expected_services:
+        PTP_Ass_Gen: "PTP - Assetto Generale"
+        PTP_Pericolo: "PTP - Pericolosità Geologica ed Idraulica"
+        PTP_Lin_Prog: "PTP - Schema delle Linee Programmatiche"
+        PTP_Disciplina: "PTP - Disciplina di Uso e Valorizzazione"
+        PTP_Codici: "PTP - Codici di Siti, Beni e Aree di Specifico Interesse"
+        PTP_Vincoli: "PTP - Vincoli Paesaggistici"
+    plan_types: [regolatore, stato]
+    planning_instruments: [PTP, PRG, PRGC]
+    status: active
+    notes: >
+      Il discovery legge sempre la lista corrente del repertorio (44 servizi), il
+      relativo inventario dei layer e la selezione completa dei 6 servizi PTP.
+      Il download dei FeatureClass professionali richiede il token indicato
+      nell'ambiente VDA_ARCGIS_TOKEN e non lo salva mai su file o nei log.
+      Applicare il profilo valle_d_aosta: regione → comune.
+
+  - key: r_vda_prg_status
+    livello: regione
+    ente: "Regione Autonoma Valle d'Aosta — stato PRG"
+    region: "Valle d'Aosta"
+    region_istat: "02"
+    kind: geoportal_download
+    adapter: vda_prg_status
+    url: "https://mappe.regione.vda.it/pub/geonavitg/geopiani.asp"
+    mapservice: "https://mappe.regione.vda.it/foundation/rest/services/ServiziGlobali/Siti/MapServer"
+    layer_id: 3
+    fields:
+      municipality_code: codcom
+      municipality_name: comune
+      adaptation_status: stato_prg
+    status_codes:
+      INA: "Iter non avviato"
+      AFF: "Affiancamento"
+      BCV: "Bozza in corso di valutazione"
+      BVT: "Bozza valutata"
+      VIC: "Testo definitivo in corso di valutazione"
+      APC: "Approvato, privo di cartografia numerica"
+      APP: "Approvato"
+    plan_types: [stato]
+    planning_instruments: [PTP, PRG, PRGC]
+    status: active
+    notes: >
+      Quadro ufficiale, aggiornato continuativamente, dell'adeguamento dei PRG
+      al PTP/L.R. 11/1998 e dei relativi provvedimenti.
+
+  - key: r_vda_prg_updates
+    livello: regione
+    ente: "Geoportale Valle d'Aosta — feed aggiornamenti PRG comunali"
+    region: "Valle d'Aosta"
+    region_istat: "02"
+    kind: wordpress_feed
+    adapter: null              # METADATI (wp-json), non geodati
+    url: "https://geoportale.regione.vda.it/category/pianificazione/prg/"
+    wp_api: "https://geoportale.regione.vda.it/wp-json/wp/v2/posts?categories=5&per_page=100&_fields=id,slug,date,modified,title,link"
+    plan_types: [regolatore]
+    planning_instruments: [PRG, PRGC]
+    status: metadata
+    notes: >
+      Feed WordPress (categoria 'prg', ~32 post) degli aggiornamenti PRG per comune: ogni post
+      rimanda al viewer geourbapub (index.html?codcom=NNN) e riporta comune + data. NON ospita
+      file scaricabili: le GEOMETRIE dei PRG sono già scaricate da r_vda (adapter vda_platform)
+      tramite i servizi ArcGIS Public PRG_Prescrittiva (55 layer) e PRG_Motivazionale (36),
+      per tutti i comuni. Questa fonte è utile come METADATO — quali comuni hanno il PRG e la
+      data di aggiornamento/approvazione — a supporto del target di composizione PIANI_MATURITA
+      e del calcolo di copertura. Estrarre via wp_api (id, data, modified, link con codcom).
+
+  - key: r_lombar
+    livello: regione
+    ente: "Regione Lombardia — PGT, PPR, fattibilità geologica e confini correnti"
+    region: "Lombardia"
+    region_istat: "03"
+    kind: arcgis_rest
+    adapter: arcgis_rest
+    url: "https://www.geoportale.regione.lombardia.it/"
+    pgtweb_url: "https://www.multiplan.servizirl.it/pgtwebn/"
+    metadata_url: >
+      https://www.geoportale.regione.lombardia.it/metadati?p_p_id=detailSheetMetadata_WAR_gptmetadataportlet&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&_detailSheetMetadata_WAR_gptmetadataportlet_uuid=%7B9e2d52aa-e824-4863-81d8-7f9ba70b613d%7D
+    links:
+      - {label: "PGTWEB", url: "https://www.multiplan.servizirl.it/pgtwebn/"}
+      - {label: "Inventario PGT", url: "https://www.dati.lombardia.it/resource/ijqk-ahfp.json"}
+      - {label: "Mosaico PGT REST", url: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/tav_previsioni_b/MapServer"}
+      - {label: "Stato PGT REST", url: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/stato_pgt/MapServer"}
+      - {label: "PPR REST", url: "https://www.cartografia.servizirl.it/arcgis2/rest/services/sistemiverdi/piano_paesaggistico/MapServer"}
+      - {label: "PTR — quadro di salvaguardia PT7 REST", url: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/ptr_tav2/MapServer"}
+      - {label: "Mosaico PTCP REST", url: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/ptcp/MapServer"}
+      - {label: "Fattibilità geologica REST", url: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/fattibilita_geologica/MapServer"}
+      - {label: "Comuni correnti REST", url: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/limiti_amministrativi_dbt_cr_pub/MapServer/3"}
+    license: "CC-BY 4.0"
+    out_sr: 4326
+    page_size: 500
+    geometry_precision: 8
+    dashboard_batch_size: 2
+    expected_dataset_count: 138
+    municipality_coverage_count: 1501
+    municipality_coverage_checked_at: "2026-07-29"
+    topic: planningCadastre
+    plan_types: [regolatore, stato]
+    planning_instruments: [PTR, PPR, PTCP, PGT, DdP, PdS, PdR, Componente geologica]
+    feeds_targets:
+      - PIANI_MATURITA
+      - ANALISI_URBANISTICA
+      - TUTELE_AMBIENTALI_PAESAGGISTICHE
+      - RISCHI_PERICOLOSITA
+    arcgis_services:
+      - key: mosaico_pgt
+        service: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/tav_previsioni_b/MapServer"
+        topic: planningCadastre
+        layers:
+          - {id: 1, name: "PGT — Pericolosità sismica lineare", topic: geoscientificInformation}
+          - {id: 2, name: "PGT — Pericolosità sismica poligonale", topic: geoscientificInformation}
+          - {id: 3, name: "PGT — Fattibilità geologica", topic: geoscientificInformation}
+          - {id: 5, name: "PGT — Corridoi della rete ecologica comunale", topic: environment}
+          - {id: 6, name: "PGT — Aree critiche della rete ecologica comunale", topic: environment}
+          - {id: 7, name: "PGT — Aree di supporto della rete ecologica comunale", topic: environment}
+          - {id: 8, name: "PGT — Nodi della rete ecologica comunale", topic: environment}
+          - {id: 9, name: "PGT — Varchi della rete ecologica comunale", topic: environment}
+          - {id: 10, name: "PGT — Zone di riqualificazione della rete ecologica comunale", topic: environment}
+          - {id: 11, name: "PGT — Modalità attuative"}
+          - {id: 12, name: "PGT — Nuclei di antica formazione"}
+          - {id: 13, name: "PGT — Ambiti di trasformazione"}
+          - {id: 14, name: "PGT — Ambiti di rigenerazione urbana e territoriale"}
+          - {id: 15, name: "PGT — Aree dismesse, abbandonate e degradate"}
+          - {id: 16, name: "PGT — SUAP, Sportello unico per le attività produttive", topic: economy}
+          - {id: 17, name: "PGT — Aree di valore paesaggistico-ambientale ed ecologico puntuali", topic: environment}
+          - {id: 18, name: "PGT — Servizi e impianti"}
+          - {id: 19, name: "PGT — Aree agricole", topic: farming}
+          - {id: 20, name: "PGT — Ambiti del tessuto urbano consolidato"}
+          - {id: 21, name: "PGT — Aree di valore paesaggistico-ambientale ed ecologico", topic: environment}
+          - {id: 22, name: "PGT — Classi di sensibilità paesistica", topic: environment}
+          - {id: 24, name: "PGT — Carta del consumo di suolo"}
+          - {id: 25, name: "PGT — Carta del consumo di suolo 2014"}
+          - {id: 27, name: "PGT — Fasce di rispetto stradale"}
+          - {id: 28, name: "PGT — Fasce di rispetto ferroviario"}
+          - {id: 29, name: "PGT — Fasce di rispetto cimiteriali"}
+          - {id: 30, name: "PGT — Fasce di rispetto da impianti di depurazione"}
+          - {id: 31, name: "PGT — Fasce di rispetto da pozzi e sorgenti"}
+          - {id: 32, name: "PGT — Limitazioni per servitù militari"}
+          - {id: 33, name: "PGT — Limitazioni in aree limitrofe ad aeroporti"}
+          - {id: 35, name: "PGT — Comuni coperti", topic: boundaries}
+          - {id: 36, name: "PGT — Province", topic: boundaries}
+      - key: stato_pgt
+        service: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/stato_pgt/MapServer"
+        topic: planningCadastre
+        layers:
+          - {id: 1, name: "Stato di approvazione del PGT per comune"}
+          - {id: 2, name: "Scheda PGTWEB per comune"}
+      - key: ppr
+        service: "https://www.cartografia.servizirl.it/arcgis2/rest/services/sistemiverdi/piano_paesaggistico/MapServer"
+        topic: environment
+      - key: fattibilita_geologica
+        service: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/fattibilita_geologica/MapServer"
+        topic: geoscientificInformation
+        layers:
+          - {id: 88, name: "Mosaico regionale della fattibilità geologica"}
+      - key: limiti_amministrativi
+        service: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/limiti_amministrativi_dbt_cr_pub/MapServer"
+        topic: boundaries
+        layers:
+          - {id: 3, name: "Comuni correnti della Lombardia"}
+      - key: ptr_pt7
+        service: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/ptr_tav2/MapServer"
+        topic: environment
+      - key: ptcp_mosaico
+        service: "https://www.cartografia.servizirl.it/arcgis1/rest/services/territorio/ptcp/MapServer"
+        topic: planningCadastre
+        layer_id_range: [83, 122]
+    status: active
+    notes: >
+      Fonte primaria della pipeline Lombardia. Un solo processo acquisisce
+      sette servizi ufficiali ArcGIS: Tavola delle Previsioni del Mosaico PGT
+      (32 layer), stato PGT/collegamento PGTWEB per comune (2), PPR (29),
+      mosaico regionale della fattibilità geologica (1), comuni correnti (1),
+      quadro di salvaguardia PTR/PT7 (33) e mosaico PTCP (40). Per il PTCP è
+      inclusa solo la rappresentazione di dettaglio (layer 83–122): le due
+      copie generalizzate a scale minori sono escluse.
+      I dati includono
+      COD_ISTAT e consentono il filtro successivo per provincia o comune. I
+      layer più grandi superano le 500.000 feature: il download è paginato,
+      limita a 2 layer per run dalla dashboard e riprende dai layer già
+      conclusi senza richiedere file preesistenti. Il MapServer PTR conserva
+      il nome tecnico storico ptr_tav2 ma raccoglie i temi del quadro PT7; il
+      mosaico PTCP è una base regionale armonizzata e non sostituisce la
+      verifica dell'atto provinciale vigente. Il PTM di Milano è gestito dalla
+      fonte separata r_lombar_ptm.
+      Il layer cartografico dello stato contiene anche comuni storici: in
+      Composizione andrà filtrato sui 1.501 codici amministrativi correnti e
+      verificato con l'inventario PGT regionale aggiornato settimanalmente.
+
+  - key: r_lombar_pgtweb
+    livello: regione
+    ente: "Regione Lombardia — Inventario procedimenti PGTWEB"
+    region: "Lombardia"
+    region_istat: "03"
+    kind: socrata
+    adapter: socrata
+    url: "https://www.dati.lombardia.it/Territorio/PGTWEB-Inventario-dei-piani/ijqk-ahfp"
+    socrata_dataset: "ijqk-ahfp"
+    socrata_endpoint: "https://www.dati.lombardia.it/resource/ijqk-ahfp.json"
+    dataset_title: "PGTWEB — Inventario dei piani, fasi e stato di caricamento"
+    pgtweb_url: "https://www.multiplan.servizirl.it/pgtwebn/"
+    updated_field: data_ins
+    page_size: 50000
+    dashboard_batch_size: 1
+    expected_dataset_count: 1
+    municipality_coverage_count: 1501
+    topic: planningCadastre
+    plan_types: [regolatore, stato]
+    planning_instruments: [PGT, DdP, PdS, PdR, Componente geologica]
+    feeds_target: PIANI_MATURITA
+    status: active
+    license: "CC-BY 4.0"
+    links:
+      - {label: "Dataset PGTWEB", url: "https://www.dati.lombardia.it/Territorio/PGTWEB-Inventario-dei-piani/ijqk-ahfp"}
+      - {label: "API JSON", url: "https://www.dati.lombardia.it/resource/ijqk-ahfp.json"}
+      - {label: "Ricerca e documenti PGTWEB", url: "https://www.multiplan.servizirl.it/pgtwebn/"}
+    notes: >
+      Inventario amministrativo ufficiale dei procedimenti. Contiene codice
+      ISTAT, tipo piano, fase corrente (fase_pgt), stato del piano, stato di
+      caricamento della cartografia e riferimenti BURL. Le righe sono ripetute
+      per le sezioni del procedimento: in Composizione vanno deduplicate per
+      piano e comune. È la fonte primaria per la maturità amministrativa; il
+      MapServer stato_pgt resta un controllo cartografico e conserva anche
+      comuni storici.
+
+  - key: r_lombar_ptm
+    livello: provincia
+    ente: "Città metropolitana di Milano — PTM vigente 2021"
+    region: "Lombardia"
+    region_istat: "03"
+    province: "Milano"
+    province_istat: "015"
+    kind: websit_xml
+    adapter: websit_xml
+    url: "https://www.cittametropolitana.mi.it/aree-tematiche/pianificazione-territoriale/websit-sistema-informativo-territoriale/WebSIT-Dataset/Dataset_PTM21.html"
+    catalog_xml: "https://sit2.cittametropolitana.mi.it/www/websitemaps/pianificazione/sit/websit/servizi_banchedati_PTM.xml"
+    entry_tag: "servizi_banchedati_PTM"
+    data_base_url: "https://sit2.cittametropolitana.mi.it/www/websitemaps/pianificazione/sit/websit/dati_PTM/"
+    metadata_base_url: "https://sit2.cittametropolitana.mi.it/www/websitemaps/pianificazione/sit/websit/metadati/"
+    expected_dataset_count: 157
+    dashboard_batch_size: 2
+    municipality_coverage_count: 133
+    topic: planningCadastre
+    plan_types: [metropolitano]
+    planning_instruments: [PTM]
+    feeds_targets:
+      - ANALISI_URBANISTICA
+      - TUTELE_AMBIENTALI_PAESAGGISTICHE
+      - RISCHI_PERICOLOSITA
+      - RETE_VIABILITA
+      - SERVIZI_POLARITA
+    status: active
+    links:
+      - {label: "Catalogo PTM vigente", url: "https://www.cittametropolitana.mi.it/aree-tematiche/pianificazione-territoriale/websit-sistema-informativo-territoriale/WebSIT-Dataset/Dataset_PTM21.html"}
+      - {label: "Catalogo XML", url: "https://sit2.cittametropolitana.mi.it/www/websitemaps/pianificazione/sit/websit/servizi_banchedati_PTM.xml"}
+    notes: >
+      Catalogo ufficiale del PTM approvato nel 2021, organizzato in nove
+      tavole più la ricognizione della Direttiva Alluvioni. L'XML contiene 284
+      riferimenti; l'adapter li deduplica per archivio in 157 pacchetti
+      shapefile unici, conservando tavole, categorie, aggiornamento, metadati
+      e servizi WMS. Il download è atomico, procede in batch di due pacchetti
+      e riparte dai file già conclusi.
+
+  - key: r_veneto
+    livello: regione
+    ente: "Regione del Veneto — pianificazione comunale e PTRC 2020"
+    region: "Veneto"
+    region_istat: "05"
+    kind: wfs
+    adapter: veneto_webgis
+    url: "https://idt2.regione.veneto.it/portfolio/webgis-della-pianificazione-urbanistica-e-territoriale/"
+    wfs_url: "https://idt2-geoserver.regione.veneto.it/geoserver/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    feature_batch_size: 500
+    viewer_config_url: "https://idt2.regione.veneto.it/idt/wgconfigurator/webgisConfig/getWebgisConfigAsJson"
+    webgis:
+      - id: 213
+        role: municipal_planning
+        url: "https://idt2.regione.veneto.it/idt/webgis/viewer?webgisId=213"
+      - id: 191
+        role: ptrc_2020
+        url: "https://idt2.regione.veneto.it/idt/webgis/viewer?webgisId=191"
+    expected_dataset_count: 269
+    dashboard_batch_size: 10
+    municipality_coverage_count: 559
+    municipality_coverage_checked_at: "2026-07-29"
+    plan_types: [regolatore, stato]
+    planning_instruments: [PTRC, PTCP, PAT, PATI, PI, AUC]
+    feeds_targets:
+      - PIANI_MATURITA
+      - ANALISI_URBANISTICA
+      - TUTELE_AMBIENTALI_PAESAGGISTICHE
+      - RISCHI_PERICOLOSITA
+    license: "IODL 2.0 (salve condizioni specifiche del singolo dataset)"
+    links:
+      - {label: "WebGIS pianificazione comunale", url: "https://idt2.regione.veneto.it/idt/webgis/viewer?webgisId=213"}
+      - {label: "WebGIS PTRC 2020 vigente", url: "https://idt2.regione.veneto.it/idt/webgis/viewer?webgisId=191"}
+      - {label: "WFS ufficiale", url: "https://idt2-geoserver.regione.veneto.it/geoserver/ows?service=WFS&request=GetCapabilities&version=2.0.0"}
+      - {label: "Catalogo metadati CSW", url: "https://idt2.regione.veneto.it/geoportal/csw"}
+      - {label: "Pianificazione comunale PAT/PI", url: "https://www.regione.veneto.it/web/ambiente-e-territorio/pianificazione-comunale"}
+      - {label: "Contenimento del consumo di suolo", url: "https://www.regione.veneto.it/web/ambiente-e-territorio/contenimento-consumo-di-suolo"}
+    status: active
+    notes: >
+      Fonte operativa principale del Veneto. Scoperta non congela nomi fisici
+      soggetti ad aggiornamento: legge le configurazioni correnti dei WebGIS
+      regionali 213 e 191 e le incrocia con GetCapabilities WFS. Attualmente
+      trova 4 layer comunali (confini correnti, province, perimetri AUC della
+      L.R. 14/2017 e zonizzazione del Piano Regolatore Comunale) e 266 layer
+      PTRC 2020 unici; un confine amministrativo è comune ai due insiemi, per
+      un totale di 269 download, deduplicando le ripetizioni tra tavole. La zonizzazione
+      supera 386.000 geometrie: GetFeature è paginato e la dashboard elabora
+      al massimo 10 layer per run, saltando quelli già completi. Il confine
+      ufficiale espone 559 comuni correnti; quando viene scaricato genera
+      automaticamente l'overlay amministrativo locale, sostituendo le 563
+      geometrie storiche solo per il Veneto. Il WebGIS comunale è aggiornato
+      trimestralmente e la Regione dichiara che la rappresentazione non ha
+      valore conformativo: per la decisione finale restano necessarie NTA e
+      atti ufficiali del singolo Comune.
+
+  - key: r_emilia_romagna_pug
+    livello: regione
+    ente: "Regione Emilia-Romagna — banca dati dei Piani Urbanistici Generali (Moka PUG)"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://territorio.regione.emilia-romagna.it/urbanistica/monitoraggio-lr-24-2017/moka-pug"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PUGH5/"
+    moka_proxy_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/Proxy?"
+    moka_request_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/MokaRequest"
+    arcgis_service: "http://vm448srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PUG_926/MapServer"
+    out_sr: 4326
+    page_size: 500
+    geometry_precision: 8
+    layers:
+      - {id: 1, name: "PUG — Territorio urbanizzato all'01/01/2018", topic: planningCadastre}
+      - {id: 2, name: "PUG — Classificazione territorio", topic: planningCadastre}
+      - {id: 3, name: "PUG — Piano dell'arenile", topic: planningCadastre}
+      - {id: 4, name: "PUG — Sistema insediativo storico", topic: planningCadastre}
+      - {id: 7, name: "PUG — Griglia degli elementi strutturali (Punti)", topic: environment}
+      - {id: 8, name: "PUG — Griglia degli elementi strutturali (Linee)", topic: environment}
+      - {id: 9, name: "PUG — Griglia degli elementi strutturali (Poligoni)", topic: environment}
+      - {id: 10, name: "PUG — Obiettivi della strategia", topic: planningCadastre}
+      - {id: 11, name: "PUG — Disciplina regolativa ordinaria", topic: planningCadastre}
+      - {id: 12, name: "PUG — Disciplina accordi operativi", topic: planningCadastre}
+      - {id: 14, name: "PUG — Dotazioni territoriali (Punti)", topic: society}
+      - {id: 15, name: "PUG — Dotazioni territoriali (Linee)", topic: society}
+      - {id: 16, name: "PUG — Dotazioni territoriali (Poligoni)", topic: society}
+      - {id: 18, name: "PUG — Interventi qualità urbana ed ecologico-ambientale (Punti)", topic: environment}
+      - {id: 19, name: "PUG — Interventi qualità urbana ed ecologico-ambientale (Poligoni)", topic: environment}
+      - {id: 20, name: "PUG — Interventi qualità urbana ed ecologico-ambientale (Linee)", topic: environment}
+      - {id: 21, name: "PUG — Aree trasformate", topic: planningCadastre}
+    expected_dataset_count: 17
+    dashboard_batch_size: 8
+    plan_types: [regolatore, operativo, stato]
+    planning_instruments: [PUG, AO, PAIP, "Procedimento unico art. 53"]
+    feeds_targets:
+      - ANALISI_URBANISTICA
+      - TUTELE_AMBIENTALI_PAESAGGISTICHE
+      - RETE_VIABILITA
+      - SERVIZI_POLARITA
+    status: active
+    links:
+      - {label: "Moka PUG", url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PUGH5/"}
+      - {label: "Modello dati PUG", url: "https://territorio.regione.emilia-romagna.it/urbanistica/modello-dati/modello-dati-pug-e-interscambio/modello_dati_pug"}
+    notes: >
+      Banca dati vettoriale ufficiale dei PUG conferiti dagli enti locali. Il
+      viewer usa MapServer ArcGIS interni raggiungibili soltanto tramite il
+      proxy pubblico Moka: l'adapter inizializza la sessione e pagina le query
+      REST in GeoJSON. Ricognizione del 30 luglio 2026: 17 feature layer,
+      5.598 geometrie complessive; i layer di monitoraggio puntuali e lineari
+      sono presenti ma al momento vuoti. Il contenuto cresce con i nuovi PUG
+      conferiti e non equivale ancora alla copertura dei 330 Comuni.
+
+  - key: r_emilia_romagna_psc
+    livello: regione
+    ente: "Regione Emilia-Romagna — mosaico dei Piani Strutturali Comunali (Moka PSC)"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://territorio.regione.emilia-romagna.it/urbanistica/modello-dati/modello-dati-pug-e-interscambio/moka-psc"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PSC/index.html"
+    moka_proxy_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/Proxy?"
+    moka_request_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/MokaRequest"
+    out_sr: 4326
+    page_size: 500
+    geometry_precision: 8
+    arcgis_services:
+      - key: territori
+        service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/Territori_317/MapServer"
+        topic: planningCadastre
+        layers:
+          - {id: 0, name: "PSC — Classificazione del territorio"}
+      - key: dotazioni
+        service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/Dotazioni_318/MapServer"
+        topic: society
+        layers:
+          - {id: 0, name: "PSC — Dotazioni puntuali"}
+          - {id: 1, name: "PSC — Dotazioni lineari"}
+          - {id: 2, name: "PSC — Dotazioni poligonali"}
+      - key: mobilita
+        service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/Mobilita_319/MapServer"
+        topic: transportation
+        layers:
+          - {id: 0, name: "PSC — Mobilità puntuale"}
+          - {id: 1, name: "PSC — Mobilità lineare"}
+          - {id: 2, name: "PSC — Mobilità poligonale"}
+      - key: assetto
+        service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/Assetto_320/MapServer"
+        topic: planningCadastre
+        layers:
+          - {id: 0, name: "PSC — Assetto per ambiti"}
+      - key: copertura
+        service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PSC_in_banca_dati_316/MapServer"
+        topic: boundaries
+        layers:
+          - {id: 0, name: "PSC — Comuni presenti in banca dati", always_refresh: true}
+    expected_dataset_count: 9
+    dashboard_batch_size: 3
+    municipality_coverage_count: 135
+    municipality_coverage_checked_at: "2026-07-30"
+    plan_types: [regolatore, stato]
+    planning_instruments: [PSC]
+    feeds_targets:
+      - PIANI_MATURITA
+      - ANALISI_URBANISTICA
+      - RETE_VIABILITA
+      - SERVIZI_POLARITA
+    status: active
+    links:
+      - {label: "Moka PSC", url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PSC/index.html"}
+      - {label: "Modello dati PSC", url: "https://territorio.regione.emilia-romagna.it/urbanistica/modello-dati/modello-dati-pug-e-interscambio/moka-psc"}
+    notes: >
+      Mosaico informativo dei PSC formati ai sensi della L.R. 20/2000. Espone
+      territorio, assetto, dotazioni e mobilità in otto layer scaricabili, più
+      la copertura amministrativa della banca dati. Al 30 luglio 2026 la
+      copertura dichiara 135 Comuni; non comprende i RUE e non sostituisce gli
+      atti comunali vigenti, che restano necessari per indici e disciplina del
+      lotto durante la transizione al PUG.
+
+  # Le nove cartografie delle tutele PTCP sono pubblicate dalla Regione in
+  # viewer Moka separati. Anche dove PTM/PTAV è già efficace, queste fonti
+  # conservano le componenti paesaggistiche PTCP richiamate dall'art. 76.
+  - key: p_bo_ptcp_tutele
+    livello: provincia
+    ente: "Città metropolitana di Bologna — Allegato B PTM, tutele PTCP efficaci"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    province: "Bologna"
+    province_istat: "037"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPBO/"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPBO/"
+    arcgis_service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PTM_Bologna_-_Allegato_B_Tutele_PTCP_978/MapServer"
+    topic: planningCadastre
+    out_sr: 4326
+    page_size: 500
+    planning_instruments: [PTM, PTCP, PTPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    status: active
+    notes: "Cartografie PTCP che l'Allegato B del PTM individua come pianificazione paesaggistica regionale ancora efficace."
+
+  - key: p_fe_ptcp_tutele
+    livello: provincia
+    ente: "Provincia di Ferrara — tutele PTCP"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    province: "Ferrara"
+    province_istat: "038"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPFE/"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPFE/"
+    arcgis_service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PTCP_FERRARA_980/MapServer"
+    topic: planningCadastre
+    out_sr: 4326
+    page_size: 500
+    planning_instruments: [PTCP, PTAV, PTPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    status: active
+
+  - key: p_fc_ptcp_tutele
+    livello: provincia
+    ente: "Provincia di Forlì-Cesena — tutele PTCP"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    province: "Forlì-Cesena"
+    province_istat: "040"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPFC/"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPFC/"
+    arcgis_service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PTCP_FC_test_989/MapServer"
+    topic: planningCadastre
+    out_sr: 4326
+    page_size: 500
+    planning_instruments: [PTCP, PTAV, PTPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    status: active
+
+  - key: p_mo_ptcp_tutele
+    livello: provincia
+    ente: "Provincia di Modena — tutele PTCP, Tavole 1.1 e 1.2"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    province: "Modena"
+    province_istat: "036"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPMO/"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPMO/"
+    arcgis_service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PTCP_Modena_-_Tav__1_1_e_1_2_987/MapServer"
+    topic: planningCadastre
+    out_sr: 4326
+    page_size: 500
+    planning_instruments: [PTCP, PTAV, PTPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    links:
+      - {label: "SisTeMoNet", url: "http://www.sistemonet.it/"}
+      - {label: "Moka tutele PTCP", url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPMO/"}
+    status: active
+
+  - key: p_pr_ptcp_tutele
+    livello: provincia
+    ente: "Provincia di Parma — tutele PTCP"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    province: "Parma"
+    province_istat: "034"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPPR/"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPPR/"
+    arcgis_service: "http://vm448srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PTCP_Parma__1012/MapServer"
+    topic: planningCadastre
+    out_sr: 4326
+    page_size: 500
+    planning_instruments: [PTCP, PTAV, PTPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    links:
+      - {label: "Pianificazione provinciale", url: "https://www.provincia.parma.it/servizi-informazioni/pianificazione-provinciale"}
+      - {label: "Moka tutele PTCP", url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPPR/"}
+    status: active
+
+  - key: p_pc_ptcp_tutele
+    livello: provincia
+    ente: "Provincia di Piacenza — PTAV 2024 e tutele PTCP efficaci"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    province: "Piacenza"
+    province_istat: "033"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPPC/"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPPC/"
+    arcgis_service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PTCP_Piacenza_-_Tavole_A1_e_A2_979/MapServer"
+    topic: planningCadastre
+    out_sr: 4326
+    page_size: 500
+    planning_instruments: [PTAV, PTCP, PTPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    links:
+      - {label: "Elaborati PTCP/PTAV", url: "https://www.provincia.pc.it/ptcp/Presenta/mainlink.htm"}
+      - {label: "Moka tutele PTCP", url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPPC/"}
+    status: active
+    notes: >
+      Il PTAV è stato approvato con D.C.P. 24/2024. La fonte Moka acquisisce
+      le tutele delle Tavole A1/A2 del PTCP che continuano a essere efficaci
+      come recepimento o integrazione del PTPR.
+
+  - key: p_ra_ptcp_tutele
+    livello: provincia
+    ente: "Provincia di Ravenna — tutele PTCP"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    province: "Ravenna"
+    province_istat: "039"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPRA/"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPRA/"
+    arcgis_service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PTCP_Provincia_di_Ravenna_990/MapServer"
+    topic: planningCadastre
+    out_sr: 4326
+    page_size: 500
+    planning_instruments: [PTCP, PTAV, PTPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    status: active
+
+  - key: p_re_ptcp_tutele
+    livello: provincia
+    ente: "Provincia di Reggio Emilia — tutele PTCP"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    province: "Reggio Emilia"
+    province_istat: "035"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPRE/"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPRE/"
+    arcgis_service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PTCP_Provincia_di_Reggio_Emilia_994/MapServer"
+    topic: planningCadastre
+    out_sr: 4326
+    page_size: 500
+    planning_instruments: [PTCP, PTAV, PTPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    links:
+      - {label: "SIT provinciale e REgis", url: "https://www.provincia.re.it/aree-tematiche/pianificazione-territoriale/sistema-informativo-territoriale/"}
+      - {label: "Moka tutele PTCP", url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPRE/"}
+    status: active
+    notes: >
+      Il SIT provinciale segnala anche REgis e il mosaico PRG/PSC, ma per
+      richieste cartografiche rinvia al contatto dell'ufficio. La pipeline usa
+      il servizio vettoriale Moka regionale delle tutele PTCP.
+
+  - key: p_rn_ptcp_tutele
+    livello: provincia
+    ente: "Provincia di Rimini — PTAV 2025 e tutele PTCP efficaci"
+    region: "Emilia-Romagna"
+    region_istat: "08"
+    province: "Rimini"
+    province_istat: "099"
+    kind: arcgis_rest
+    adapter: emilia_romagna_moka
+    url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPRN/"
+    moka_app_url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PTCPRN/"
+    arcgis_service: "http://vm437srv.ente.regione.emr.it:9474/arcgis/rest/services/published_moka/PTCP_Rimini_-_Tav__B_e_Tav__C_986/MapServer"
+    topic: planningCadastre
+    out_sr: 4326
+    page_size: 500
+    planning_instruments: [PTAV, PTCP, PTPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    status: todo
+    notes: >
+      Il PTAV è stato approvato con D.C.P. 33/2025. Le disposizioni PTCP che
+      costituiscono pianificazione paesaggistica restano efficaci fino al
+      nuovo PTR, come precisato dal PTAV e dalla pagina regionale. Il viewer è
+      pubblicato, ma al 30 luglio 2026 sia l'inizializzazione Moka sia il
+      MapServer tramite proxy rispondono HTTP 500; la fonte resta censita ma
+      esclusa dalla pipeline finché il servizio non torna operativo.
+
+  # I sette piani provinciali sono registrati come fonti ufficiali dirette.
+  # Restano `todo` finché ogni portale non espone un inventario stabile e
+  # ripetibile di geodati (non soltanto viewer, PDF o pacchetti monolitici).
+  - key: p_vr
+    livello: provincia
+    ente: "Provincia di Verona — PTCP"
+    region: "Veneto"
+    region_istat: "05"
+    province: "Verona"
+    province_istat: "023"
+    kind: geoportal_download
+    adapter: null
+    url: "https://portale.provincia.vr.it/"
+    plan_types: [regolatore]
+    planning_instruments: [PTCP]
+    status: todo
+    notes: "Portale ufficiale censito; da risolvere l'inventario macchina del SITP prima di attivare Download."
+
+  - key: p_vi
+    livello: provincia
+    ente: "Provincia di Vicenza — PTCP"
+    region: "Veneto"
+    region_istat: "05"
+    province: "Vicenza"
+    province_istat: "024"
+    kind: file_catalog
+    adapter: null
+    url: "https://www.provincia.vicenza.it/docurbanistica/"
+    plan_types: [regolatore]
+    planning_instruments: [PTCP]
+    status: todo
+    links:
+      - {label: "Geoportale", url: "https://geoportale.provincia.vicenza.it/"}
+    notes: "Archivio ufficiale PTCP disponibile come ZIP monolitico di circa 1,2 GB; serve inventario per file e ripresa verificabile."
+
+  - key: p_bl
+    livello: provincia
+    ente: "Provincia di Belluno — PTCP"
+    region: "Veneto"
+    region_istat: "05"
+    province: "Belluno"
+    province_istat: "025"
+    kind: geoportal_download
+    adapter: null
+    url: "https://www.provincia.belluno.it/servizi/piano-territoriale-di-coordinamento-provinciale"
+    plan_types: [regolatore]
+    planning_instruments: [PTCP]
+    status: todo
+    links:
+      - {label: "WebGIS PTCP", url: "https://webgis.provincia.belluno.it/index.php/view/embed/?project=ptcp_app&repository=mappe"}
+    notes: "Viewer Lizmap e tavole ufficiali censiti; endpoint vettoriali da validare prima dell'attivazione."
+
+  - key: p_tv
+    livello: provincia
+    ente: "Provincia di Treviso — PTCP"
+    region: "Veneto"
+    region_istat: "05"
+    province: "Treviso"
+    province_istat: "026"
+    kind: geoportal_download
+    adapter: null
+    url: "https://www.provincia.treviso.it/it/aree-tematiche/pianificazione-territoriale/pianificazione-territoriale/piano-territoriale-di-coordinamento-provinciale"
+    plan_types: [regolatore]
+    planning_instruments: [PTCP]
+    status: todo
+    links:
+      - {label: "Catalogo GeoNetwork", url: "http://ows.provinciatreviso.it/geonetwork/srv/it/main.home"}
+    notes: "Tavole e catalogo GeoNetwork ufficiali censiti; collezione geodati PTCP da isolare e testare."
+
+  - key: p_ve
+    livello: provincia
+    ente: "Città metropolitana di Venezia — PTCP vigente e PTGM"
+    region: "Veneto"
+    region_istat: "05"
+    province: "Venezia"
+    province_istat: "027"
+    kind: geoportal_download
+    adapter: null
+    url: "https://pianificazione.cittametropolitana.ve.it/"
+    plan_types: [regolatore, metropolitano]
+    planning_instruments: [PTCP, PTGM]
+    status: todo
+    notes: >
+      Il PTCP approvato resta il riferimento efficace censito dalla Regione;
+      il nuovo strumento usa la denominazione PTGM. Documenti e viewer sono
+      registrati, ma manca ancora un endpoint vettoriale stabile verificato.
+
+  - key: p_pd
+    livello: provincia
+    ente: "Provincia di Padova — PTCP e PianiOnLine PAT/PI"
+    region: "Veneto"
+    region_istat: "05"
+    province: "Padova"
+    province_istat: "028"
+    kind: file_catalog
+    adapter: null
+    url: "https://www.provincia.padova.it/urbanistica-2"
+    plan_types: [regolatore]
+    planning_instruments: [PTCP, PAT, PI]
+    status: todo
+    links:
+      - {label: "PianiOnLine", url: "https://pianionline.provincia.padova.it/"}
+    notes: "PianiOnLine pubblica elaborati PAT e PI comunali; crawler e condizioni di download massivo da verificare."
+
+  - key: p_ro
+    livello: provincia
+    ente: "Provincia di Rovigo — PTCP"
+    region: "Veneto"
+    region_istat: "05"
+    province: "Rovigo"
+    province_istat: "029"
+    kind: file_catalog
+    adapter: null
+    url: "https://www.provincia.rovigo.it/servizi-info/ptcp-approvato"
+    plan_types: [regolatore]
+    planning_instruments: [PTCP]
+    status: todo
+    notes: "Elaborati e pacchetti cartografici ufficiali censiti; URL diretti da inventariare e testare per ripresa automatica."
+
+  - key: r_liguria
+    livello: regione
+    ente: "Regione Liguria — Geoportale, Carte tematiche"
+    region: "Liguria"
+    region_istat: "07"
+    kind: geoportal_download
+    adapter: liguria_geoportal
+    url: "https://srvcarto.regione.liguria.it/geoviewer2/pages/apps/geoportale/index.html"
+    catalog_endpoint: "https://srvcarto.regione.liguria.it/geoservices/REST/geoportale/catalogo/"
+    map_config_endpoint: "https://srvcarto.regione.liguria.it/geoservices/REST/config/map"
+    catalog_section: "CARTE TEMATICHE"
+    expected_map_count: 350
+    dashboard_batch_size: 25
+    # Mappe fuori dalla sezione CARTE TEMATICHE ma servite dallo stesso
+    # map_config_endpoint: il Piano Paesaggistico Regionale (PPR) vive in un'app
+    # dedicata del Geoportale. Le aggiungiamo al discovery così i loro layer WFS
+    # entrano nel catalogo e vengono scaricati come gli altri (niente PDF, niente
+    # file locali). 2098/2229/2100/2109 = 29 layer, tutti flagDownload via WFS.
+    # 2156 (attività estrattive) e 755 (rete ecologica) sono già in CARTE TEMATICHE.
+    extra_maps:
+      - {id: 2098, category: "PIANO PAESAGGISTICO REGIONALE"}   # PPR - Ambiti e Unità di paesaggio
+      - {id: 2229, category: "PIANO PAESAGGISTICO REGIONALE"}   # PPR - Componenti di Paesaggio
+      - {id: 2100, category: "PIANO PAESAGGISTICO REGIONALE"}   # PPR - Vincoli Ope Legis art.142
+      - {id: 2109, category: "PIANO PAESAGGISTICO REGIONALE"}   # PPR - Vincoli per decreto art.136
+    included_categories:
+      - "ACQUE INTERNE"
+      - "ACQUE MARINE"
+      - "AGRICOLTURA"
+      - "AMBIENTE"
+      - "BIOLOGIA"
+      - "ECONOMIA"
+      - "INFORMAZIONI GEOSCIENTIFICHE"
+      - "PIANIFICAZIONE DEL TERRITORIO E CATASTO"
+      - "RETI, INFRASTRUTTURE E SERVIZI DI COMUNICAZIONE"
+      - "SALUTE"
+      - "SOCIETA"
+      - "STRUTTURE"
+      - "TRASPORTO"
+    plan_types: [regolatore, stato]
+    planning_instruments: [PTCP paesistico, PPR, PTR, PTC, PTM, Piani di bacino, PUC]
+    status: active
+    notes: >
+      Il discovery legge la sezione corrente CARTE TEMATICHE del catalogo
+      ufficiale e risolve la configurazione di ciascuna mappa. Al 27 luglio 2026
+      il catalogo espone 350 mappe tematiche, di cui 116 nella categoria
+      Pianificazione del territorio e catasto. Il download usa i WFS ufficiali
+      soltanto per i layer marcati scaricabili nella configurazione del portale.
+      Applicare il profilo liguria: regione → provincia/metropolitana → comune.
+
+  - key: r_tn_pup
+    livello: regione
+    ente: "Provincia Autonoma di Trento — PUP (Piano Urbanistico Provinciale)"
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "TN"
+    province_istat: "022"
+    kind: wfs
+    adapter: wfs_generic
+    url: "https://webgis.provincia.tn.it/wgt/?topic=5"
+    wfs_url: "https://geoservices.cloud-intra.tn.it/geoserver/pub_pup/wfs"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    proxy_template: "https://webgis.provincia.tn.it/wgt/services/ogcproxy/capabilities?url={url}"
+    topic: planningCadastre
+    plan_types: [regolatore, stato]
+    planning_instruments: [PUP]
+    feeds_target: ANALISI_URBANISTICA
+    dashboard_batch_size: 20
+    type_names:
+      - {name: "pub_pup:a101_n_pup", title: "Insediamenti storici  principali (a101_n_pup)"}
+      - {name: "pub_pup:a101_p_pup", title: "Insediamenti storici (a101_p_pup)"}
+      - {name: "pub_pup:a407_l_pup", title: "Fronti di particolare pregio (a407_l_pup)"}
+      - {name: "pub_pup:d208_p_pup", title: "Aree sciabili e sistemi piste-impianti (d208_p_pup)"}
+      - {name: "pub_pup:e103_p_pup", title: "Aree agricole (e103_p_pup)"}
+      - {name: "pub_pup:e104_p_pup", title: "Aree agricole di pregio (e104_p_pup)"}
+      - {name: "pub_pup:e105_p_pup", title: "Foreste demaniali e boschi di pregio (e105_p_pup)"}
+      - {name: "pub_pup:e106_p_pup", title: "Aree boscate (e106_p_pup)"}
+      - {name: "pub_pup:e107_p_pup", title: "Pascoli (e107_p_pup)"}
+      - {name: "pub_pup:e108_p_pup", title: "Rocce e rupi boscate (e108_p_pup)"}
+      - {name: "pub_pup:f426_l_ext", title: "Ferrovia extra PAT (f426_l_ext)"}
+      - {name: "pub_pup:f426_l_pup", title: "Ferrovia (f426_l_pup)"}
+      - {name: "pub_pup:f436_p_pup", title: "Aereoporti - interporti (f436_p_pup)"}
+      - {name: "pub_pup:f441_l_pup", title: "Impianti a fune (f441_l_pup)"}
+      - {name: "pub_pup:f444_l_pup", title: "Elettrodotti (f444_l_pup)"}
+      - {name: "pub_pup:f450_l_pup", title: "Gallerie (f450_l_pup)"}
+      - {name: "pub_pup:f805_n_pup", title: "Siti impianti di depurazione esistenti (f805_n_pup)"}
+      - {name: "pub_pup:f806_n_pup", title: "Siti impianti di depurazione di progetto (f806_n_pup)"}
+      - {name: "pub_pup:l108_p_pup", title: "Aree estrattive (l108_p_pup)"}
+      - {name: "pub_pup:l110_n_pup", title: "Cave storiche di pietre ornamentali (l110_n_pup)"}
+      - {name: "pub_pup:p001_n_pup", title: "Centri urbani di livello provinciale e sovralocale (p001_n_pup)"}
+      - {name: "pub_pup:p002_p_pup", title: "Collegamenti funzionali (p002_p_pup)"}
+      - {name: "pub_pup:p003_p_pup", title: "Conoidi alluvionali (p003_p_pup)"}
+      - {name: "pub_pup:p004_p_pup", title: "Fiume Adige (p004_p_pup)"}
+      - {name: "pub_pup:p005_l_pup", title: "Condotte forzate (p005_l_pup)"}
+      - {name: "pub_pup:p006_p_pup", title: "Inquadramento 1:25.000 taglio ED50 (p006_p_pup)"}
+      - {name: "pub_pup:p007_p_pup", title: "Inquadramento 1:10.000 taglio ED50 (p007_p_pup)"}
+      - {name: "pub_pup:p008_p_pup", title: "Inquadramento 1:50.000 taglio ED50 (p008_p_pup)"}
+      - {name: "pub_pup:p009_p_pup", title: "Miniere storiche (poligonali) (p009_p_pup)"}
+      - {name: "pub_pup:p010_n_pup", title: "Miniere storiche (puntuali) (p010_n_pup)"}
+      - {name: "pub_pup:p011_l_pup", title: "Paleoalvei (p011_l_pup)"}
+      - {name: "pub_pup:p012_p_pup", title: "Ambiti elementari di paesaggio (p012_p_pup)"}
+      - {name: "pub_pup:p013_l_ext", title: "Connessioni esterne - esterne principali (p013_l_ext)"}
+      - {name: "pub_pup:p014_l_pup", title: "Viabilità storica (p014_l_pup)"}
+      - {name: "pub_pup:p015_n_pup", title: "Sistemi elementi storici, culturali e architettonici  (p015_n_pup)"}
+      - {name: "pub_pup:p016_p_pup", title: "Cave di pietra (p016_p_pup)"}
+      - {name: "pub_pup:p017_n_pup", title: "Centrali idroelettriche (p017_n_pup)"}
+      - {name: "pub_pup:p018_n_pup", title: "Centri di innovazione d'impresa (BIC) (p018_n_pup)"}
+      - {name: "pub_pup:p019_n_pup", title: "Centri commerciali di attrazione sovracomunale (p019_n_pup)"}
+      - {name: "pub_pup:p020_p_pup", title: "Sistemi complessi di paesaggio (p020_p_pup)"}
+      - {name: "pub_pup:p021_l_pup", title: "Confine Regioni e Province confinanti (p021_l_pup)"}
+      - {name: "pub_pup:p022_n_pup", title: "Centri turistici e turistici principali (p022_n_pup)"}
+      - {name: "pub_pup:p023_l_pup", title: "Limite espansione abitati (p023_l_pup)"}
+      - {name: "pub_pup:p024_p_pup", title: "Aree insediative, produttive e servizi (p024_p_pup)"}
+      - {name: "pub_pup:p025_n_pup", title: "Paesaggi di particolare pregio (p025_n_pup)"}
+      - {name: "pub_pup:p026_n_pup", title: "Accessi alle aree sciabili (p026_n_pup)"}
+      - {name: "pub_pup:p027_n_pup", title: "Sedi comunali (p027_n_pup)"}
+      - {name: "pub_pup:p028_n_pup", title: "Attrezzature di livello provinciale (p028_n_pup)"}
+      - {name: "pub_pup:p029_l_ext", title: "Viabilità esterne alla PAT (p029_l_ext)"}
+      - {name: "pub_pup:p029_l_pup", title: "Viabilità esistente e di progetto (p029_l_pup)"}
+      - {name: "pub_pup:p030_p_pup", title: "Area a quota superiore a 1600 m slm (p030_p_pup)"}
+      - {name: "pub_pup:p031_l_pup", title: "Sistemi di faglie (p031_l_pup)"}
+      - {name: "pub_pup:p032_n_pup", title: "Sorgenti termali (p032_n_pup)"}
+      - {name: "pub_pup:p033_n_ext", title: "Toponomastica principale extra PAT (p033_n_ext)"}
+      - {name: "pub_pup:p033_n_pup", title: "Toponomastica della PAT al 10.000 (p033_n_pup)"}
+      - {name: "pub_pup:p034_p_ext", title: "Urbanizzato extra PAT (p034_p_ext)"}
+      - {name: "pub_pup:p035_n_pup", title: "Toponomastica della PAT al 50.000 (p035_n_pup)"}
+      - {name: "pub_pup:z101_p_ext", title: "Laghi extra PAT (z101_p_ext)"}
+      - {name: "pub_pup:z101_p_pup", title: "Laghi (z101_p_pup)"}
+      - {name: "pub_pup:z102_p_pup", title: "Alvei (z102_p_pup)"}
+      - {name: "pub_pup:z103_p_pup", title: "Ghiacciai (z103_p_pup)"}
+      - {name: "pub_pup:z104_l_pup", title: "Fiumi e torrenti (z104_l_pup)"}
+      - {name: "pub_pup:z201_p_pup", title: "Area di  tutela ambientale (z201_p_pup)"}
+      - {name: "pub_pup:z307_p_ext", title: "Parchi naturali extra PAT (z307_p_ext)
+"}
+      - {name: "pub_pup:z307_p_pup", title: "Parchi naturali e nazionali Provinciali (z307_p_pup)"}
+      - {name: "pub_pup:z308_p_pup", title: "Riserve naturali Provinciali (z308_p_pup)"}
+      - {name: "pub_pup:z309_p_ext", title: "Siti e zone \"Natura 2000\" extra PAT (z309_p_ext)"}
+      - {name: "pub_pup:z309_p_pup", title: "Siti e zone \"Natura 2000\" PAT (z309_p_pup)"}
+      - {name: "pub_pup:z310_p_pup", title: "Aree di rispetto dei laghi (z310_p_pup)"}
+      - {name: "pub_pup:z311_n_pup", title: "Manufatti e siti archeologici (z311_n_pup)"}
+      - {name: "pub_pup:z312_p_pup", title: "Aree di protezione fluviale (z312_p_pup)"}
+      - {name: "pub_pup:z313_p_pup", title: "ZPS – zone di protezione speciale (z313_p_pup)"}
+      - {name: "pub_pup:biop_ist_non", title: "z316_p_pup"}
+      - {name: "pub_pup:z316_p_pup", title: "Riserve naturali Provinciali - Biotopi (z316_p_pup)"}
+      - {name: "pub_pup:z317_p_pup", title: "Riserve locali (z317_p_pup)"}
+      - {name: "pub_pup:z321_n_pup", title: "Elementi geologici e geomorfologici (z321_n_pup)"}
+      - {name: "pub_pup:z322_n_pup", title: "Beni ambientali (z322_n_pup)"}
+      - {name: "pub_pup:z323_n_pup", title: "Sorgenti (z323_n_pup)"}
+      - {name: "pub_pup:z324_n_pup", title: "Sorgenti superficiali (z324_n_pup)"}
+      - {name: "pub_pup:z325_n_pup", title: "Pozzi (z325_n_pup)"}
+      - {name: "pub_pup:z326_p_pup", title: "Beni del patrimonio dolomitico (z326_p_pup)"}
+      - {name: "pub_pup:z402_l_pup", title: "Confine Provinciale (z402_l_pup)"}
+      - {name: "pub_pup:z403_p_pup", title: "Confine Comunale (z403_p_pup)"}
+    status: active
+    notes: >
+      Dati vettoriali del PUP (Piano Urbanistico Provinciale, L.P. 15/2015), il
+      piano sovraordinato che assorbe PTR + piano paesaggistico. 83 feature type
+      del GeoServer pub_pup (aree agricole/di pregio, boscate, protezione fluviale,
+      tutele paesistiche, limite espansione abitati, vincoli...). Il GeoServer sta
+      su host intranet (cloud-intra) raggiunto via proxy webgis (ogcproxy);
+      l'adapter wfs_generic avvolge le richieste WFS nel proxy_template.
+      Alimenta ANALISI_URBANISTICA + vincoli edificabilità.
+
+  - key: r_tn_prguso
+    livello: regione
+    ente: "Provincia Autonoma di Trento — Uso del Suolo Pianificato (PRG)"
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "TN"
+    province_istat: "022"
+    kind: wfs
+    adapter: wfs_generic
+    managed_by: r_tn_pup
+    url: "https://webgis.provincia.tn.it/wgt/?topic=5"
+    wfs_url: "https://geoservices.cloud-intra.tn.it/geoserver/pub_usp_s/wfs"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    proxy_template: "https://webgis.provincia.tn.it/wgt/services/ogcproxy/capabilities?url={url}"
+    topic: planningCadastre
+    plan_types: [regolatore]
+    planning_instruments: [PRG]
+    feeds_target: ANALISI_URBANISTICA
+    type_names:
+      - {name: "pub_usp_s:prguso", title: "Carta di Uso del Suolo Pianificato (PRGUSO)"}
+    status: todo
+    notes: >
+      Carta di Uso del Suolo Pianificato (PRGUSO): mosaicatura della zonizzazione
+      dei PRG dei 166 comuni trentini. TODO: il workspace pub_usp_s NON espone WFS
+      (HTTP 500 / capabilities vuoto), è servito solo come WMS/raster. Serve una
+      via alternativa (WMS GetMap a griglia, o download diretto dal geoportale
+      territorio.provincia.tn.it). Quando risolto → alimenta ANALISI_URBANISTICA.
+
+  - key: r_tn_pericolosita
+    livello: regione
+    ente: "Provincia Autonoma di Trento — Carta di Sintesi della Pericolosità"
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "TN"
+    province_istat: "022"
+    kind: arcgis_rest
+    adapter: arcgis_rest
+    managed_by: r_tn_pup
+    url: "https://webgis.provincia.tn.it/wgt/?topic=5"
+    arcgis_service: "https://geoservices.provincia.tn.it/agol/rest/services/geologico/CP_sintesi_finale/MapServer"
+    out_sr: 4326
+    topic: geoscientificInformation
+    plan_types: [regolatore, stato]
+    planning_instruments: [Carta di Sintesi della Pericolosità]
+    feeds_target: RISCHI_PERICOLOSITA
+    dashboard_batch_size: 3
+    layers:
+      - {id: 5, name: "Sintesi finale pericolosità"}
+      - {id: 3, name: "Ambiti fluviali idraulici"}
+    status: active
+    notes: >
+      Carta di Sintesi della Pericolosità (frane, valanghe, alluvioni): il vincolo
+      di edificabilità chiave in Trentino (zona rossa = diritti edificatori
+      congelati). ArcGIS MapServer pubblico interrogabile (Map,Query,Data); l'adapter
+      arcgis_rest scarica le feature via /query GeoJSON paginato. Layer 5 "Sintesi
+      finale" ~449k poligoni. Alimenta RISCHI_PERICOLOSITA (edificabilità).
+
+  - key: r_tn_servizi_valli
+    livello: regione
+    ente: "Trentino — Servizi e POI delle Comunità di Valle (open data)"
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "TN"
+    province_istat: "022"
+    kind: ckan
+    adapter: ckan_collection
+    managed_by: r_tn_pup
+    url: "https://dati.trentino.it/dataset/"
+    ckan_api: "https://dati.trentino.it/api/3/action"
+    topic: structure
+    plan_types: [stato]
+    planning_instruments: [Servizi territoriali, POI]
+    feeds_target: SERVIZI_POLARITA
+    formats: [GEOJSON]
+    title_patterns:
+      - "servizi sul territorio"
+      - "luoghi e punti di interesse"
+    organizations:
+      - comunita-della-paganella
+      - comunita-della-val-di-cembra
+      - comunita-della-valle-dei-laghi
+      - comunita-delle-giudicarie
+      - comunita-rotaliana-koenigsberg
+      - comunita-territoriale-della-val-di-fiemme
+      - comunita-valsugana-e-bersntol
+      - comunita-valsugana-e-tesino
+    status: active
+    notes: >
+      Dati civici delle Comunità di Valle su CKAN dati.trentino.it: "Servizi sul
+      territorio" (2 comunità) + "Luoghi e punti di interesse" (8). GeoJSON diretti.
+      Alimenta SERVIZI_POLARITA (dotazioni/attrattività), NON urbanistica — le
+      Comunità non pubblicano il PTC come open data (è centralizzato in PAT).
+
+  - key: r_bz_piani
+    livello: regione
+    ente: "Provincia Autonoma di Bolzano/Südtirol — Piani Territoriali (PUC/Bauleitplan, Piano Paesaggistico, Zone di Pericolo)"
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "BZ"
+    province_istat: "021"
+    kind: wfs
+    adapter: wfs_generic
+    url: "https://mapview.civis.bz.it/?context=PROV-BZ-GEOBROWSER-MAPVIEW&lang=it"
+    wfs_url: "https://geoservices.buergernetz.bz.it/geoservice1/p_bz-TerritorialPlans/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    topic: planningCadastre
+    plan_types: [regolatore, stato]
+    planning_instruments: [PUC, Bauleitplan, Landschaftsplan, Gemeindeentwicklungsprogramm, Gefahrenzonenplan]
+    feeds_target: ANALISI_URBANISTICA
+    dashboard_batch_size: 15
+    # type_names omesso di proposito: il discover legge tutti i ~58 feature type
+    # dal GetCapabilities del workspace (bilingue IT/DE).
+    status: active
+    notes: >
+      Workspace GeoServer p_bz-TerritorialPlans (geobrowser civis.bz.it): la
+      pianificazione altoatesina post-L.P. 9/2018. Contiene UrbanPlan-ZoningPlan
+      (PUC/Bauleitplan: Baugebiete/zone edificabili, Siedlungsgebiet/limite di
+      insediamento, vincoli), LandscapePlan (Piano Paesaggistico: Natura2000,
+      biotopi, aree protette, zoning), UrbanPlan-HazardZonePlan (Zone di Pericolo:
+      Wassergefahren/Lawinen/Massenbewegungen = frane/valanghe/alluvioni, il
+      vincolo di edificabilità), piani attuativi ed ensemble. WFS diretto (no
+      proxy), GeoJSON. Alimenta ANALISI_URBANISTICA + RISCHI_PERICOLOSITA.
+      Le altre 7 sezioni del geobrowser (Naturgefahren/Hydrology/Geology ecc.)
+      sono su altri workspace, aggiungibili come fonti separate.
+
+  - key: r_bz_piani_gvcc
+    livello: regione
+    ente: "Provincia Autonoma di Bolzano/Südtirol — Piano Comunale Territorio e Paesaggio (Consorzio Comuni GVCC)"
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "BZ"
+    province_istat: "021"
+    kind: wfs
+    adapter: wfs_generic
+    managed_by: r_bz_piani
+    url: "https://mapview.civis.bz.it/?context=PROV-BZ-GEOBROWSER-MAPVIEW&lang=it"
+    wfs_url: "https://geoservices3.civis.bz.it/geoserver/gvcc-TerritorialPlans/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    topic: planningCadastre
+    plan_types: [regolatore]
+    planning_instruments: [Gemeindeentwicklungsprogramm, Piano Comunale Territorio e Paesaggio]
+    feeds_target: ANALISI_URBANISTICA
+    dashboard_batch_size: 11
+    status: active
+    notes: >
+      Workspace gvcc-TerritorialPlans (geoservices3, path /geoserver/): il NUOVO
+      strumento comunale post-riforma, "Programma di sviluppo comunale per il
+      territorio e il paesaggio" (CommunityDevelopmentProgramme Areas/Lines/Symbols)
+      che sostituisce e fonde PUC + Piano Paesaggistico comunale, più piani
+      attuativi, di recupero, ensemble, parcellizzazione dei comuni gestiti dal
+      Consorzio dei Comuni (GVCC). Complementare a r_bz_piani (province-managed).
+
+  - key: r_bz_pericoli
+    livello: regione
+    ente: "Provincia Autonoma di Bolzano/Südtirol — Pericoli naturali (IFFI frane, valanghe, eventi)"
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "BZ"
+    province_istat: "021"
+    kind: wfs
+    adapter: wfs_generic
+    managed_by: r_bz_piani
+    url: "https://mapview.civis.bz.it/?context=PROV-BZ-GEOBROWSER-MAPVIEW&lang=it"
+    wfs_url: "https://geoservices2.civis.bz.it/geoserver/pczs-Hazards/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    topic: geoscientificInformation
+    plan_types: [stato]
+    planning_instruments: [Zone di pericolo, IFFI]
+    feeds_target: RISCHI_PERICOLOSITA
+    dashboard_batch_size: 10
+    status: active
+    notes: >
+      Workspace pczs-Hazards: inventario dettagliato dei pericoli naturali —
+      movimenti di massa/frane (IdroGEO-Landslides, IFFI), valanghe (registro
+      eventi), pericolosità idraulica. Complementa le Zone di Pericolo del piano
+      (r_bz_piani HazardZonePlan) col catalogo eventi. Alimenta RISCHI_PERICOLOSITA.
+
+  - key: r_bz_geologia
+    livello: regione
+    ente: "Provincia Autonoma di Bolzano/Südtirol — Geologia"
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "BZ"
+    province_istat: "021"
+    kind: wfs
+    adapter: wfs_generic
+    managed_by: r_bz_piani
+    url: "https://mapview.civis.bz.it/?context=PROV-BZ-GEOBROWSER-MAPVIEW&lang=it"
+    wfs_url: "https://geoservices1.civis.bz.it/geoserver/p_bz-Geology/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    topic: geoscientificInformation
+    plan_types: [stato]
+    planning_instruments: [Carta geologica]
+    feeds_target: RISCHI_PERICOLOSITA
+    dashboard_batch_size: 11
+    status: active
+    notes: >
+      Workspace p_bz-Geology: unità geologiche, faglie principali, movimenti di
+      massa profondi (DGPV), permafrost/rock glaciers, sondaggi, procedimenti
+      dell'Ufficio Geologia. Base per pericolosità/edificabilità.
+
+  - key: r_bz_idrologia
+    livello: regione
+    ente: "Provincia Autonoma di Bolzano/Südtirol — Idrologia (corsi d'acqua, bacini, opere di protezione)"
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "BZ"
+    province_istat: "021"
+    kind: wfs
+    adapter: wfs_generic
+    managed_by: r_bz_piani
+    url: "https://mapview.civis.bz.it/?context=PROV-BZ-GEOBROWSER-MAPVIEW&lang=it"
+    wfs_url: "https://geoservices1.civis.bz.it/geoserver/p_bz-Hydrology/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    topic: inlandWaters
+    plan_types: [stato]
+    planning_instruments: [Reticolo idrografico]
+    feeds_target: RISCHI_PERICOLOSITA
+    dashboard_batch_size: 15
+    status: active
+    notes: >
+      Workspace p_bz-Hydrology: corsi d'acqua, laghi, bacini idrografici, fasce di
+      tutela laghi, opere di protezione idraulica (BAUKAT30), zone di tutela acqua
+      potabile, stazioni. Rilevante per rischio idraulico/alluvioni (edificabilità).
 
   # ---- LIVELLO PROVINCIA (esempi già presenti nel catalogo Torino) --------
   - key: p_to
     livello: provincia
     ente: "Città Metropolitana di Torino — PTC2 / opendata"
     region: "Piemonte"
+    region_istat: "01"
     province: "TO"
+    province_istat: "001"
     kind: geoportal_download
+    adapter: piemonte_catalog
+    inventory_file: piemonte_reference_catalog.csv
+    inventory_version: 1
+    expected_dataset_count: 183
+    dashboard_batch_size: 20
+    download_workers: 3
     url: "http://www.cittametropolitana.torino.it/geoportale/"
     plan_types: [regolatore, stato]
+    planning_instruments: [PTC2]
     status: active
-    notes: "Provincia intesa come provincia + area metropolitana. Layer PTC_2_-_*."
+    notes: >
+      Provincia intesa come Città metropolitana. Inventario riproducibile:
+      130 risorse CMTO + 52 risorse ARPA collegate al quadro torinese.
+      Sono 180 file scaricabili e 3 riferimenti solo metadati: due percorsi
+      storici non HTTP e il feed GTFS GTT, escluso dal download automatico perché
+      la licenza pubblicata da GTT vieta l'uso commerciale senza autorizzazione.
+      I dati del Comune di Torino non sono inclusi in questo scope.
+
+  - key: p_to_arpa
+    livello: provincia
+    ente: "ARPA Piemonte — quadro ambientale e dissesto per Torino"
+    region: "Piemonte"
+    region_istat: "01"
+    province: "TO"
+    province_istat: "001"
+    kind: catalog_component
+    managed_by: p_to
+    url: "https://geoportale.arpa.piemonte.it/"
+    plan_types: [regolatore, stato]
+    planning_instruments: [PAI, PGRA, BDGeo100]
+    status: active
+    notes: >
+      Le 52 risorse del quadro torinese sono incluse nel catalogo e nel Download
+      p_to; questa voce separata rende visibile la provenienza nella pagina Fonti.
+
+  - key: p_to_gtfs
+    livello: provincia
+    ente: "GTT — feed GTFS Torino"
+    region: "Piemonte"
+    region_istat: "01"
+    province: "TO"
+    province_istat: "001"
+    kind: restricted_dataset
+    managed_by: p_to
+    url: "https://www.gtt.to.it/open_data/gtt_gtfs.zip"
+    plan_types: [stato]
+    planning_instruments: [GTFS]
+    status: metadata
+    notes: >
+      Fonte effettivamente usata dai layer GTFS della piattaforma storica, ma
+      non scaricata automaticamente: la licenza GTT pubblicata il 28 luglio 2026
+      consente l'uso non commerciale e vieta quello commerciale senza previa
+      autorizzazione. Target investitori: serve autorizzazione esplicita.
+
+  - key: p_to_prgc_mosaico
+    livello: provincia
+    ente: "Città Metropolitana di Torino — Mosaico dei PRGC (attuale, WFS)"
+    region: "Piemonte"
+    region_istat: "01"
+    province: "TO"
+    province_istat: "001"
+    kind: wfs
+    adapter: wfs_generic
+    managed_by: p_to
+    url: "https://www.cittametropolitana.torino.it/node/5609"
+    wfs_url: "https://opengis.csi.it/ws/cmtogis/cmto-01/cmtowmsniger/wfs_mosaico_prgc"
+    wfs_version: "2.0.0"
+    output_format: "geojson"   # MapServer CSI: 'application/json' rifiutato, usare 'geojson'
+    srs: "EPSG:4326"
+    topic: planningCadastre
+    plan_types: [regolatore]
+    planning_instruments: [PRGC]
+    feeds_target: ANALISI_URBANISTICA
+    dashboard_batch_size: 26
+    type_names:
+      - {name: "ms:R-Residenziale", title: "R - Residenziale"}
+      - {name: "ms:R-Residenziale_VPI", title: "R - Residenziale - Verde privato inedificabile"}
+      - {name: "ms:P-Produttivo", title: "P - Produttivo"}
+      - {name: "ms:T-Terziario", title: "T - Terziario"}
+      - {name: "ms:M-Polifunzionale", title: "M - Polifunzionale/Misto"}
+      - {name: "ms:H-TurRic", title: "H - Turistico-Ricettivo"}
+      - {name: "ms:A-Agri_ND", title: "A - Agricolo - Non differenziato"}
+      - {name: "ms:A-Agri_Boscato", title: "A - Agricolo - aree boscate"}
+      - {name: "ms:A-Agri_CorpoIdrico", title: "A - Agricolo - Corpo idrico"}
+      - {name: "ms:A-Agri_Vincolato", title: "A - Agricolo - Vincolato e/o Salvaguardia"}
+      - {name: "ms:A-Agri_TutelaAmb", title: "A - Agricolo - Tutela ambientale"}
+      - {name: "ms:SG-Infra-Imp", title: "SG - Servizi generali - Infrastrutture-impianti"}
+      - {name: "ms:SG-Parchi", title: "SG - Servizi generali - Parchi"}
+      - {name: "ms:SG-Sanita", title: "SG - Servizi generali - Sanitari-ospedalieri"}
+      - {name: "ms:SG-Istruzione", title: "SG - Servizi generali - Istruzione superiore/universitaria"}
+      - {name: "ms:SG-NonDiffIntG", title: "SG - Servizi generali - Non differenziati"}
+      - {name: "ms:S-Persone", title: "S - Servizi - Alle persone"}
+      - {name: "ms:S-Attivita", title: "S - Servizi - Alle attività"}
+      - {name: "ms:S-VSP", title: "S - Servizi - Verde/Sport/Parcheggi"}
+      - {name: "ms:S-Privati", title: "S - Servizi - Privati non assoggettati all'uso pubblico"}
+      - {name: "ms:S-NonDiffPer", title: "S - Servizi - Non differenziati"}
+      - {name: "ms:V-Viab_Esistente", title: "V - Viabilità - Esistente"}
+      - {name: "ms:V-Viab_InProg", title: "V - Viabilità - In progetto"}
+      - {name: "ms:CT-Completamento", title: "CT - Compromissione territoriale - Completamento"}
+      - {name: "ms:CT-Trasformazione", title: "CT - Compromissione territoriale - Trasformazione"}
+      - {name: "ms:CT-NuovoImpianto", title: "CT - Compromissione territoriale - Nuovo impianto"}
+    status: active
+    notes: >
+      Mosaico armonizzato dei PRGC comunali della Città Metropolitana di Torino,
+      classi semantiche uniformi (R/P/T/M/H/A/S/SG/V/CT). Servito via WFS GeoJSON
+      paginato (opengis.csi.it, adapter wfs_generic). Alimenta ANALISI_URBANISTICA
+      come zonizzazione ATTUALE, complementare alla mosaicatura PRG storica
+      regionale (r_piemon, per provincia). MPRG_INFO.zip nel catalogo p_to è solo
+      la documentazione, il dato vive nel WFS.
 
   - key: p_bi
     livello: provincia
     ente: "Provincia di Biella — PTPv"
     region: "Piemonte"
+    region_istat: "01"
     province: "BI"
+    province_istat: "096"
     kind: geoportal_download
     url: "https://www.provincia.biella.it/"
     plan_types: [regolatore]
+    planning_instruments: [PTPv]
     status: dead
     notes: "Alcuni link PTPv 404 (vedi ../Nord/piemonte/_non_recuperati.csv). Da ritrovare."
 
+  # ---- LIVELLO COMUNE -----------------------------------------------------
+  - key: c_001272
+    livello: comune
+    ente: "Città di Torino — Geoportale"
+    region: "Piemonte"
+    region_istat: "01"
+    province: "TO"
+    province_istat: "001"
+    comune_istat: "001272"
+    kind: geoportal_download
+    adapter: piemonte_catalog
+    inventory_file: piemonte_reference_catalog.csv
+    inventory_version: 1
+    expected_dataset_count: 223
+    dashboard_batch_size: 20
+    download_workers: 3
+    url: "http://geoportale.comune.torino.it/"
+    plan_types: [regolatore, stato]
+    planning_instruments: [PRG, PRGC]
+    status: active
+    notes: >
+      Le 223 risorse comunali del catalogo pilota sono riproducibili da zero.
+      Il prefisso storico c_l219 è mantenuto in legacy_uuid per la provenienza,
+      mentre la pipeline usa la chiave canonica c_001272.
+
   # ---- FONTI NAZIONALI (operativo, valgono per tutti i territori) ---------
   # Dal foglio 'EMI' di Ricerca_piani_territoriali_fondi_UE_Italia_download.xlsx.
-  # Già scaricate in ../Sources/. Si filtrano per territorio in fase di compose.
-  - key: n_opencup
+  # Le copie in ../Sources/ sono golden locali e non valgono come prerequisito:
+  # ogni fonte senza adapter resta esplicitamente "todo".
+  - key: n_hotosm_poi
     livello: nazionale
-    ente: "OpenCUP — DIPE/Presidenza del Consiglio"
+    ente: "Humanitarian OpenStreetMap Team — Italia, punti di interesse"
     kind: national_dataset
-    url: "https://www.opencup.gov.it/portale/web/opencup/opendata"
-    plan_types: [operativo]
-    status: active
-    notes: "Opere pubbliche/incentivi/investimenti. In ../Sources/OpenCUP/ e opencup Regionale/."
-
-  - key: n_pnrr
-    livello: nazionale
-    ente: "OpenPNRR — Fondazione Openpolis"
-    kind: national_dataset
-    url: "https://openpnrr.it/opendata/"
-    plan_types: [operativo]
-    status: active
-    notes: "Investimenti PNRR. In ../Sources/PNRR/."
-
-  - key: n_opencoesione
-    livello: nazionale
-    ente: "OpenCoesione — DPCoe"
-    kind: national_dataset
-    url: "https://opencoesione.gov.it/it/opendata/"
-    plan_types: [operativo]
-    status: todo
-    notes: "Progetti coesione (aggiorna ogni 2 mesi)."
-
-  - key: n_pums
-    livello: nazionale
-    ente: "Osservatorio PUMS"
-    kind: national_dataset
-    url: "https://www.osservatoriopums.it/osservatorio"
-    plan_types: [operativo]
-    status: active
-    notes: "Interventi trasportistici programmati per comune/area."
-
-  - key: n_ainop
-    livello: nazionale
-    ente: "AINOP — MIT"
-    kind: national_dataset
-    url: "https://ainop.mit.gov.it/"
+    adapter: local_spatial
+    url: "https://data.humdata.org/dataset/hotosm_ita_points_of_interest"
+    data_url: "https://export.hotosm.org/"
+    applies_to_all_regions: true
+    expected_dataset_count: 2
+    dashboard_batch_size: 2
+    data_format: "GeoJSON + Shapefile"
+    exported_at: "2025-01-28T12:12:21Z"
+    license: "ODbL 1.0"
+    attribution: "© OpenStreetMap contributors; export Humanitarian OpenStreetMap Team"
     plan_types: [stato]
+    planning_instruments: [OSM, HOTOSM]
+    feeds_targets: [ANALISI_URBANISTICA, PUNTI_INTERESSE]
     status: active
-    notes: "Anagrafe nazionale opere pubbliche. In ../Sources/AINOP - MIT/."
+    local_datasets:
+      - key: points
+        title: "HOTOSM Italia — Punti di interesse puntuali"
+        topic: society
+        geometry: Point
+        format: GeoJSON
+        feature_count: 1048796
+        path: "hotosm_ita_points_of_interest_points_geojson/hotosm_ita_points_of_interest_points_geojson.geojson"
+      - key: polygons
+        title: "HOTOSM Italia — Usi e punti di interesse poligonali"
+        topic: planningCadastre
+        geometry: Polygon
+        format: Shapefile
+        feature_count: 726749
+        path: "hotosm_ita_points_of_interest_polygons_shp/hotosm_ita_points_of_interest_polygons_shp.shp"
+    notes: >
+      Copertura nazionale derivata da OpenStreetMap. I poligoni alimentano
+      ANALISI_URBANISTICA come informazione descrittiva sugli usi osservati,
+      senza sostituire la destinazione urbanistica prescrittiva. I punti
+      alimentano PUNTI_INTERESSE. Attributi principali: amenity, shop, tourism,
+      man_made, name, opening_hours, indirizzo e osm_id. I file locali sono
+      collegati via symlink; il link HDX è conservato per gli aggiornamenti.
+      Dato crowdsourced non esaustivo, riutilizzabile secondo ODbL 1.0.
+
+  - key: n_omi
+    livello: nazionale
+    ente: "Agenzia delle Entrate — OMI (Osservatorio Mercato Immobiliare)"
+    kind: geopoi_api
+    url: "https://www1.agenziaentrate.gov.it/servizi/geopoi_omi/index.htm"
+    plan_types: [stato]
+    planning_instruments: [OMI]
+    status: active
+    # VERIFICATO (download libero, senza autenticazione). Endpoint del viewer GeoPOI:
+    api_base: "https://www1.agenziaentrate.gov.it/servizi/geopoi_omi/"
+    endpoints:
+      province: "zoneomi.php?richiesta=1"                                  # elenco province
+      comuni: "zoneomi.php?richiesta=2&prov=<SIGLA>"                       # comuni (CODCOM Belfiore)
+      semestri: "zoneomi.php?richiesta=5&prov=<SIGLA>"                     # semestri disponibili (2016→2025)
+      perimetri_comune: "perimetri.php?prov=<SIGLA>&codcom=<BELFIORE>&semestre=<AAAAS>"  # ZIP geometrie zone OMI
+      perimetri_provincia: "perimetri.php?prov=<SIGLA>&semestre=<AAAAS>"   # ZIP con tutti i comuni della provincia
+      quotazioni_zona: "zoneomi.php?richiesta=8&codcom=<BELFIORE>&semestre=<AAAAS>&zo=<ZONA>"  # valori €/m² per zona
+    notes: >
+      Nazionale. Contiene PERIMETRI (geometrie zone OMI) + VALORI (quotazioni €/m²), per comune/
+      provincia e per semestre. Download VERIFICATO: perimetri.php restituisce ZIP (es. AO/A205/20252
+      = Allein, 7,7KB; per-provincia senza codcom = tutti i comuni). Cascata: richiesta=1 province →
+      richiesta=2 comuni → richiesta=5 semestri → perimetri.php (geometrie) + richiesta=8 (valori).
+      Completezza raggiungibile iterando ~110 province per semestre (più efficiente del per-comune).
+      Alimenta il layer finale di composizione VALORI_OMI. Adapter: lib/omi.py (run.py omi).
+
+  - key: n_ainop_opere
+    livello: nazionale
+    ente: "MIT — Elenco opere pubbliche censite su portale AINOP"
+    kind: ckan
+    adapter: ckan_mit
+    url: "https://dati.mit.gov.it/catalog/dataset/elenco-opere-pubbliche-censite-su-portale-ainop"
+    ckan_api: "https://dati.mit.gov.it/catalog/api/3/action"
+    ckan_dataset: "elenco-opere-pubbliche-censite-su-portale-ainop"
+    prefer_formats: [XLSX, CSV]     # scarica gli XLSX (poi CSV di ripiego)
+    plan_types: [stato]
+    planning_instruments: [AINOP]
+    feeds_target: RETE_VIABILITA
+    status: active
+    notes: >
+      22 risorse (XLSX+CSV per tipo: aeroportuali, dighe, edilizia, portuali, ferroviarie
+      gallerie/ponti/tratte, stradali gallerie/ponti/tratte, altre). Scaricate e combinate danno
+      l'overview delle opere AINOP. L'adapter scarica in locale (raw/nazionale/n_ainop_opere/,
+      formato preferito CSV) e SOVRASCRIVE con --refresh. Alimenta RETE_VIABILITA
+      (classe canonica INFRASTRUTTURE_AINOP, overlay opere attuali).
+
+  - key: n_opere_incompiute
+    livello: nazionale
+    ente: "MIT — Opere Incompiute (SIMOI)"
+    kind: ckan
+    adapter: ckan_mit
+    url: "https://dati.mit.gov.it/catalog/dataset/opere-incompiute"
+    ckan_api: "https://dati.mit.gov.it/catalog/api/3/action"
+    ckan_dataset: "opere-incompiute"
+    plan_types: [stato]
+    planning_instruments: [Opere incompiute]
+    feeds_target: ANALISI_URBANISTICA
+    status: active
+    notes: >
+      9 risorse (CSV/XLS per anno 2016→2024 + metadati). Scaricate in locale
+      (raw/nazionale/n_opere_incompiute/) e sovrascritte con --refresh. Alimenta ANALISI_URBANISTICA.
+
+  - key: n_catasto_inspire
+    livello: nazionale
+    ente: "Agenzia delle Entrate — Cartografia catastale (dataset nazionale INSPIRE)"
+    kind: local_archive
+    adapter: catasto_inspire        # DA IMPLEMENTARE: nessun adapter esistente
+                                    # gestisce gli zip annidati (local_spatial
+                                    # vuole file singoli in local_datasets).
+    url: "https://www.agenziaentrate.gov.it/portale/web/guest/schede/fabbricatiterreni/consultazione-cartografia-catastale/cartografia-catastale-wfs"
+    download_endpoint: "https://wfs.cartografia.agenziaentrate.gov.it/inspire/wfs/GetDataset.php?dataset=ITALIA.zip"
+    backup_dataset_url: "https://www.dati.gov.it/view-dataset/dataset?id=9d74351a-eb63-4f64-848a-69770e9722b2"
+    also_published_via: "n_anncsu (mappa ANNCSU: livelli fogli+particelle INSPIRE)"
+    canonical_catasto: true         # UNICA fonte catasto ammessa (regola utente)
+    local_root: "ITALIA"            # relativo a Layer_Processor/; ~28 GB già scaricati
+    srs: "EPSG:6706"                # RDN2008 geografico (ordine lat/lon nel GML)
+    archive_structure: >
+      REGIONE.zip → PROV.zip (sigla) → <BELFIORE>_<COMUNE>.zip →
+      {_map.gml = CP:CadastralZoning (fogli), _ple.gml = CP:CadastralParcel (particelle)}
+    feature_types: ["CP:CadastralParcel", "CP:CadastralZoning"]
+    topic: planningCadastre
+    plan_types: [stato]
+    planning_instruments: [Catasto]
+    feeds_target: SEMAFORO_EDIFICABILITA   # le particelle = geometria base dei lotti
+    coverage_regions_present: 19           # tutte le regioni tranne il Trentino-Alto Adige
+    missing_regions:
+      - "04 Trentino-Alto Adige — catasto tavolare (libro fondiario) gestito dalle
+         Province Autonome di Trento e Bolzano, NON pubblicato nel dataset INSPIRE
+         nazionale dell'Agenzia delle Entrate. Va acquisito dai portali provinciali."
+    status: todo
+    notes: >
+      Cartografia catastale vettoriale nazionale (particelle + fogli) in formato
+      INSPIRE GML, EPSG:6706. Scaricata in locale in ITALIA/ come 19 zip regionali
+      annidati (regione→provincia→comune, ogni comune con _map.gml/_ple.gml).
+      Copre 19/20 regioni: manca solo il Trentino-Alto Adige (catasto tavolare
+      provinciale). Onboarding: serve un adapter `catasto_inspire` che cammini gli
+      zip annidati e materializzi/componga per-regione le particelle (CadastralParcel)
+      e i fogli (CadastralZoning). Base geometrica per il semaforo edificabilità
+      per-lotto. Fonte: revolutionarygis.wordpress.com/2025/02/06/cartografia-catastale-italia.
+      REGOLA CATASTO (utente): tutto il catasto si scarica SOLO dall'Agenzia delle
+      Entrate (questo dataset / ANNCSU). NON creare downloader catastali regionali;
+      i layer regionali con topic planningCadastre sono PRG/PUG (zonizzazione), non
+      particelle. Eccezione: il Trentino-Alto Adige NON è nel dataset nazionale →
+      TN da n_catasto_tn (catastotn.tndigit.it); Bolzano ancora senza fonte.
+
+  # ==========================================================================
+  # FRIULI-VENEZIA GIULIA (region_istat 06) — IRDAT FVG, WFS pubblico diretto.
+  # Regione a statuto speciale SENZA province (no PTCP): dialogo Regione↔215 Comuni.
+  # PPR 2018 prescrittivo e prevalente. PRGC comunali = piattaforma Eagle-FVG
+  # (per-comune, onboarding separato). PAI = Autorità di Bacino Alpi Orientali
+  # (onboarding separato). Primo giro = fetta verticale PPR + tutele.
+  # Endpoint per-workspace: https://irdat.regione.fvg.it/geoserver/<WS>/ows
+  # GeoJSON nativo (application/json), WFS 2.0.0 con numberMatched, nessun proxy.
+  # type_names auto-scoperti da GetCapabilities (non elencati a mano).
+  # ==========================================================================
+
+  - key: r_fvg_ppr
+    livello: regione
+    ente: "Regione Autonoma Friuli-Venezia Giulia — Piano Paesaggistico Regionale (PPR 2018)"
+    region: "Friuli-Venezia Giulia"
+    region_istat: "06"
+    kind: wfs
+    adapter: wfs_generic
+    url: "https://irdat.regione.fvg.it/"
+    wfs_url: "https://irdat.regione.fvg.it/geoserver/PPR/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    feature_batch_size: 50000   # IRDAT: tabelle senza PK → pagina unica (no startIndex)
+    topic: environment
+    plan_types: [paesaggistico, stato]
+    planning_instruments: [PPR]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    dashboard_batch_size: 20
+    status: active
+    notes: >
+      57 feature type del workspace PPR su IRDAT (ambiti/aree di paesaggio art.136,
+      beni culturali, corsi d'acqua e laghi tutelati, rete ecologica ecotopi,
+      parchi/riserve, siti UNESCO, foreste/boschi, montagne >1600 m, zone
+      archeologiche, viabilità lenta/ciclovie). Piano prevalente e prescrittivo
+      (L.R. 5/2007). Alimenta TUTELE_AMBIENTALI_PAESAGGISTICHE (VINCOLI_PAESAGGISTICI,
+      ACQUE, RETE_ECOLOGICA, AREE_PROTETTE).
+
+  - key: r_fvg_siti_prot
+    livello: regione
+    ente: "Regione Autonoma Friuli-Venezia Giulia — Siti protetti e aree naturali"
+    region: "Friuli-Venezia Giulia"
+    region_istat: "06"
+    kind: wfs
+    adapter: wfs_generic
+    url: "https://irdat.regione.fvg.it/"
+    wfs_url: "https://irdat.regione.fvg.it/geoserver/SITI_PROT/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    feature_batch_size: 50000   # IRDAT: tabelle senza PK → pagina unica (no startIndex)
+    topic: environment
+    plan_types: [stato]
+    planning_instruments: [Rete Natura 2000]
+    feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
+    dashboard_batch_size: 20
+    status: active
+    notes: >
+      19 feature type del workspace SITI_PROT: SIC, ZPS, biotopi, parchi naturali
+      regionali, riserve naturali regionali/statali, aree di reperimento, IBA
+      (Important Bird Areas), MAB UNESCO, prati stabili. Alimenta AREE_PROTETTE →
+      TUTELE_AMBIENTALI_PAESAGGISTICHE.
+
+  - key: r_fvg_zone_vinc
+    livello: regione
+    ente: "Regione Autonoma Friuli-Venezia Giulia — Zone vincolate (idrogeologico, sismica)"
+    region: "Friuli-Venezia Giulia"
+    region_istat: "06"
+    kind: wfs
+    adapter: wfs_generic
+    url: "https://irdat.regione.fvg.it/"
+    wfs_url: "https://irdat.regione.fvg.it/geoserver/ZONE_VINC/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    feature_batch_size: 50000   # IRDAT: tabelle senza PK → pagina unica (no startIndex)
+    topic: geoscientificInformation
+    plan_types: [stato]
+    planning_instruments: [Vincolo idrogeologico, Classificazione sismica]
+    feeds_target: RISCHI_PERICOLOSITA
+    dashboard_batch_size: 20
+    status: active
+    notes: >
+      5 feature type del workspace ZONE_VINC: VINCOLO_IDROGEOLOGICO, classificazione
+      sismica (DM1982, OPCM3274, nodi sismici DM2008), autorizzazioni integrate
+      ambientali. Alimenta VINCOLO_IDROGEOLOGICO + DISSESTO_GEOLOGICO (sismica) →
+      RISCHI_PERICOLOSITA. NB: il PAI/rischio idraulico vero (aree allagabili
+      Tagliamento/Isonzo) è dell'Autorità di Bacino Alpi Orientali — fonte separata.
+
+  # ==========================================================================
+  # KB NAZIONALE — fonti open data da onboardare (registrate 2026-07-31 su
+  # richiesta utente). status: todo → NON scaricare, solo catalogare/verificare.
+  # adapter: null + proposed_adapter: <nome> = adapter da implementare.
+  # feeds_target mappa ai target di composizione esistenti dove ha senso; dove
+  # non esiste un target adatto è null con la proposta indicata nelle notes.
+  # ==========================================================================
+
+  - key: n_toponimi_italia
+    livello: nazionale
+    ente: "Database dei toponimi d'Italia (dati.gov.it)"
+    kind: dataset
+    adapter: null
+    proposed_adapter: dati_gov_dataset
+    url: "https://www.dati.gov.it/view-dataset/dataset?id=c4e7e889-92b0-4f52-b4cb-e3b003a737d0"
+    dataset_id: "c4e7e889-92b0-4f52-b4cb-e3b003a737d0"
+    topic: geographicalNames
+    plan_types: [stato]
+    feeds_target: null   # proposto: PUNTI_INTERESSE / riferimento geografico
+    status: todo
+    notes: >
+      Database dei toponimi d'Italia. USO DA CHIARIRE (nota utente: "non ho ben
+      capito come usarlo"). Potenziale base di geocoding/nomi di luogo; da valutare
+      il contenuto (località, idronimi, oronimi?) prima di assegnare un target.
+
+  - key: n_anncsu
+    livello: nazionale
+    ente: "Agenzia delle Entrate + ISTAT — ANNCSU (Archivio Nazionale Numeri Civici e Strade Urbane)"
+    kind: inspire_download
+    adapter: http_download
+    url: "https://www.anncsu.gov.it/it/consultazione-dellarchivio/open-data/Accedi-ai-servizi-di-dowload-massivo-in-Open-data/"
+    regional_endpoints_pattern: "getds.php?STRAD_<REG> / INDIR_<REG> (elencati nella pagina per regione)"
+    license: "Open data DPCM 12/05/2016 — HIGH VALUE DATASET"
+    snapshot: "2026-07-03"
+    update_cadence: semestrale
+    plan_types: [stato]
+    planning_instruments: [Stradario, Indirizzario, Numeri civici]
+    feeds_target: RETE_VIABILITA
+    download_items:
+      - key: stradario_italia
+        title: "Stradario nazionale (INSPIRE)"
+        url: "https://anncsu.open.agenziaentrate.gov.it/age-inspire/opendata/anncsu/getds.php?STRAD_ITA"
+        filename: stradarioItalia.zip
+        extract: true
+        format: zip
+      - key: indirizzario_italia
+        title: "Indirizzario/numeri civici nazionale (INSPIRE)"
+        url: "https://anncsu.open.agenziaentrate.gov.it/age-inspire/opendata/anncsu/getds.php?INDIR_ITA"
+        filename: indirizzarioItalia.zip
+        extract: true
+        format: zip
+    status: active
+    notes: >
+      Stradario (STRAD_ITA) + indirizzario/numeri civici (INDIR_ITA), per Italia e
+      per regione, formato INSPIRE. La mappa ANNCSU include ANCHE la cartografia
+      catastale INSPIRE (fogli+particelle) dell'Agenzia delle Entrate: è la STESSA
+      di n_catasto_inspire → il catasto NON si duplica qui. Alimenta RETE_VIABILITA
+      (grafo strade) e fornisce la base civici per il geocoding indirizzi.
+
+  - key: n_catasto_tn
+    livello: regione
+    region: "Trentino-Alto Adige"
+    region_istat: "04"
+    province: "TN"
+    ente: "Provincia Autonoma di Trento — Catasto geometrico (TrentinoDigitale)"
+    kind: download
+    adapter: null
+    proposed_adapter: catasto_tn
+    url: "https://catastotn.tndigit.it/scarico-catasto-geometrico/it/index.html"
+    topic: planningCadastre
+    plan_types: [stato]
+    planning_instruments: [Catasto]
+    feeds_target: SEMAFORO_EDIFICABILITA
+    status: todo
+    notes: >
+      Colma il buco catastale del Trentino (assente dal dataset INSPIRE nazionale
+      per il catasto tavolare). Scarico del catasto geometrico da TrentinoDigitale.
+      NB Alto Adige/Bolzano: fonte di scarico non trovata → per ora lasciata vuota
+      (nessuna entry, da cercare in futuro).
+
+  - key: n_agcom_connettivita
+    livello: nazionale
+    ente: "AGCOM — Reportistica connettività / broadband"
+    kind: portal
+    adapter: null
+    proposed_adapter: agcom_reportistica
+    url: "https://geo.agcom.it/reportistica/"
+    topic: utilitiesCommunication
+    plan_types: [stato]
+    feeds_target: CONNETTIVITA_DIGITALE
+    status: todo
+    notes: >
+      Stato della connettività (copertura banda larga/ultralarga) sul territorio.
+      Portale reportistica geografica AGCOM. Verificare se espone download/API o
+      solo report. Proposto nuovo target CONNETTIVITA_DIGITALE.
+
+  - key: n_arco_beni_culturali
+    livello: nazionale
+    ente: "ICCD-MIC / CNR-ISTC — ArCo, Knowledge Graph del patrimonio culturale italiano"
+    kind: rdf_sparql
+    adapter: null
+    proposed_adapter: arco_sparql
+    url: "http://wit.istc.cnr.it/arco/#dati"
+    topic: culturalHeritage
+    plan_types: [stato]
+    feeds_target: BENI_CULTURALI
+    status: todo
+    notes: >
+      ArCo = 13 ontologie + dati del Catalogo Generale dei Beni Culturali (ICCD,
+      sistema SIGEC) in RDF (v2.0). Dati come Knowledge Graph: serve estrazione via
+      SPARQL/dump RDF e mapping alle particelle/punti. Complesso (RDF, non geodati
+      diretti). Alimenta i beni culturali → vincoli e punti di interesse.
+
+  - key: n_cultura_dataset_locali
+    livello: nazionale
+    ente: "MIC — dati.cultura.gov.it (dataset locali e altri servizi)"
+    kind: portal
+    adapter: null
+    proposed_adapter: cultura_gov
+    url: "https://dati.cultura.gov.it/dataset_locali/"
+    topic: culturalHeritage
+    plan_types: [stato]
+    feeds_target: BENI_CULTURALI
+    status: todo
+    notes: >
+      Portale dati.cultura.gov.it, sezione dataset locali (+ altri servizi). Da
+      esplorare per cataloghi/CKAN/SPARQL. Complementare ad ArCo.
+
+  - key: n_cultura_on
+    livello: nazionale
+    ente: "MIC — Cultura ON (luoghi ed eventi della cultura)"
+    kind: rdf_sparql
+    adapter: null
+    proposed_adapter: cultura_gov
+    url: "https://dati.cultura.gov.it/cultural_on/"
+    topic: culturalHeritage
+    plan_types: [stato]
+    feeds_target: PUNTI_INTERESSE   # luoghi della cultura (musei, biblioteche, ...)
+    status: todo
+    notes: >
+      Cultural_ON: dati su luoghi ed eventi della cultura (musei, biblioteche,
+      archivi, ...). Alimenta PUNTI_INTERESSE.
+
+  - key: n_istat_censimento_sezioni
+    livello: nazionale
+    ente: "ISTAT — Censimento permanente popolazione e abitazioni (dati per sezioni di censimento)"
+    kind: download
+    adapter: http_download
+    url: "https://www.istat.it/notizia/dati-per-sezioni-di-censimento/"
+    topic: society
+    plan_types: [stato]
+    feeds_target: DEMOGRAFIA
+    download_items:
+      - key: comuni_2023
+        title: "Dati per comune 2023 (censimento permanente)"
+        url: "https://esploradati.istat.it/databrowser/DWL/PERMPOP/SUBCOM/Comuni_2023.zip"
+        filename: Comuni_2023.zip
+        extract: true
+        format: zip
+      - key: dati_regionali_2023
+        title: "Dati regionali per sezione 2023 (censimento permanente)"
+        url: "https://esploradati.istat.it/databrowser/DWL/PERMPOP/SUBCOM/Dati_regionali_2023.zip"
+        filename: Dati_regionali_2023.zip
+        extract: true
+        format: zip
+    status: active
+    notes: >
+      Censimento permanente popolazione+abitazioni, dati sub-comunali per sezione
+      di censimento (zip comuni 2023 ~34 MB + zip regionali ~261 MB). Adapter
+      http_download (scarica + estrae). TABELLARE: va incrociato con la geometria
+      delle sezioni (n_istat_basi_territoriali) per comporre DEMOGRAFIA → serve il
+      builder di join tabella→geometria (non ancora fatto).
+
+  - key: n_istat_basi_territoriali
+    livello: nazionale
+    ente: "ISTAT — Basi territoriali e variabili censuarie (sezioni di censimento)"
+    kind: download
+    adapter: null
+    proposed_adapter: istat_download
+    url: "https://www.istat.it/notizia/basi-territoriali-e-variabili-censuarie/"
+    topic: boundaries
+    plan_types: [stato]
+    feeds_target: null   # geometria di riferimento (join con censimento)
+    status: todo
+    notes: >
+      Geometrie delle sezioni di censimento + variabili censuarie. Base geografica
+      per agganciare i dati censuari sub-comunali (n_istat_censimento_sezioni).
+
+  - key: n_anac_opendata
+    livello: nazionale
+    ente: "ANAC — Autorità Nazionale Anticorruzione (open data appalti, OCDS, RPCT)"
+    kind: portal
+    adapter: null
+    proposed_adapter: anac_opendata
+    url: "https://dati.anticorruzione.it/opendata/dataset"
+    download_endpoints:
+      ocds_it: "https://dati.anticorruzione.it/opendata/ocds_it"
+      dataset: "https://dati.anticorruzione.it/opendata/dataset"
+      rpct: "https://dati.anticorruzione.it/#/rpct"
+    topic: economy
+    plan_types: [stato]
+    feeds_target: TRASPARENZA_APPALTI
+    status: todo
+    notes: >
+      Open data appalti pubblici in formato OCDS + vari dataset + RPCT
+      (responsabili prevenzione corruzione). Trasparenza/appalti per comune.
+
+  - key: n_istat_posas
+    livello: nazionale
+    ente: "ISTAT Demografia — POSAS (popolazione residente per età e sesso)"
+    kind: download
+    adapter: null
+    proposed_adapter: istat_demo
+    url: "https://demo.istat.it"
+    topic: society
+    reference_date: "2026-01-01"
+    plan_types: [stato]
+    feeds_target: DEMOGRAFIA
+    status: todo
+    notes: >
+      Stima ufficiale popolazione residente per età e sesso (POSAS) al 1/1/2026 +
+      indici demografici (vecchiaia ~190, dipendenza ~58) e piramide delle età.
+      Alimenta DEMOGRAFIA.
+
+  - key: n_mimit_carburanti
+    livello: nazionale
+    ente: "MIMIT — Osservatorio Prezzi Carburanti (art. 51 L.99/2009)"
+    kind: csv
+    adapter: csv_direct
+    applies_to_all_regions: true   # nazionale → entra nel compose di ogni regione
+    url: "https://www.mimit.gov.it/it/prezzi-carburanti"
+    metadata_url: "https://www.mimit.gov.it/images/stories/documenti/Metadati_prezzi_carburanti_20260128.pdf"
+    license: "Open data MIMIT"
+    update_cadence: giornaliera
+    topic: economy
+    plan_types: [stato]
+    feeds_target: PUNTI_INTERESSE   # distributori come punti servizio
+    csv_datasets:
+      - key: anagrafica_impianti
+        title: "Anagrafica impianti attivi (distributori)"
+        url: "https://www.mimit.gov.it/images/exportCSV/anagrafica_impianti_attivi.csv"
+        delimiter: "|"        # NB: pipe, non ';'
+        skip_rows: 1          # riga 1 = "Estrazione del <data>"; header alla riga 2
+        geometry: point
+        lat_field: Latitudine
+        lon_field: Longitudine
+        join_field: idImpianto
+      - key: prezzi
+        title: "Prezzi praticati (aggiornamento giornaliero)"
+        url: "https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv"
+        delimiter: "|"
+        skip_rows: 1
+        geometry: none
+        join_field: idImpianto
+    status: active
+    notes: >
+      Anagrafica impianti (distributori, con coordinate Latitudine/Longitudine) +
+      prezzi praticati, comunicati quotidianamente. CSV diretti (adapter csv_direct,
+      2 file). L'anagrafica dà i punti distributore → PUNTI_INTERESSE; i prezzi si
+      agganciano per idImpianto. Prima riga del CSV = data estrazione (header alla
+      riga 2): da gestire in normalizzazione.
+
+  - key: n_istat_asia_ul
+    livello: nazionale
+    ente: "ISTAT — ASIA Unità Locali (imprese/occupazione per comune × ATECO)"
+    kind: sdmx
+    adapter: istat_sdmx
+    url: "https://esploradati.istat.it/databrowser/#/it/dw/categories/IT1,Z0900ENT,1.0/ENT_STRU/DICA_ASIAULP/IT1,183_285_DF_DICA_ASIAULP_1,1.0"
+    sdmx_base: "https://esploradati.istat.it/SDMXWS/rest"
+    sdmx_datasets:
+      - key: asia_ul_classe_ampiezza_2023
+        title: "ASIA UL per classe ampiezza comune × ATECO 2023"
+        dataflow_id: "183_285_DF_DICA_ASIAULP_1"
+        version: "1.0"
+        start: 2023
+        end: 2023
+      - key: asia_ul_terrifdata_2023
+        title: "ASIA UL TERRIFDATA × ATECO 2023"
+        dataflow_id: "183_1163_DF_DICA_ASIAULP_TERRIFDATA_1"
+        version: "1.0"
+        start: 2023
+        end: 2023
+    license: "CC BY 3.0 IT"
+    update_cadence: "annuale ~Q4 (latency ~2 anni; nel 2026 ultimo anno = 2023)"
+    time_coverage: "2018-2023"
+    topic: economy
+    plan_types: [stato]
+    feeds_target: COMMERCIO_PRODUTTIVO
+    status: active
+    notes: >
+      Unità locali e addetti × ATECO 2 cifre × classe addetti, via SDMX (adapter
+      istat_sdmx → SDMX-CSV). CAVEAT GRANULARITÀ: questi due dataflow sono aggregati
+      per CLASSE DI AMPIEZZA del comune (REF_AREA = INH_*), NON per singolo comune →
+      utili per un quadro nazionale/aggregato, non per un layer per-comune. Per il
+      per-comune serve il dataflow territoriale corretto (da individuare nel
+      databrowser). CAVEAT UL: conta unità locali, non imprese. → COMMERCIO_PRODUTTIVO.
+
+  - key: n_mef_immobili_pubblici
+    livello: nazionale
+    ente: "MEF — Censimento immobili pubblici (fabbricati e terreni)"
+    kind: download
+    adapter: null
+    proposed_adapter: mef_immobili
+    url: "https://www.de.mef.gov.it/it/attivita_istituzionali/patrimonio_pubblico/censimento_immobili_pubblici/open_data_immobili/"
+    topic: planningCadastre
+    plan_types: [stato]
+    feeds_target: ANALISI_URBANISTICA
+    status: todo
+    notes: >
+      Beni immobili pubblici dichiarati al MEF (fabbricati e terreni). Da
+      agganciare al catasto per la geometria. Alimenta ANALISI_URBANISTICA.
+
+  - key: n_istat_pendolarismo
+    livello: nazionale
+    ente: "ISTAT — Matrice pendolarismo O-D (Censimento permanente 2021, lavoro)"
+    kind: download
+    adapter: http_download
+    url: "https://www.istat.it/notizia/matrici-di-contiguita-distanza-e-pendolarismo/"
+    databrowser: "https://esploradati.istat.it/databrowser/#/it/censpop/categories/IT1,Z1200CPA,1.0/MATRICE_PEND"
+    sdmx_dataflow: "DF_BULK_PEND_LAV_2021_1"   # bulk → file zip DWL (no API /data)
+    topic: transportation
+    plan_types: [stato]
+    feeds_target: MOBILITA_ACCESSIBILITA
+    download_items:
+      - key: matrice_pendolarismo_lavoro_2021
+        title: "Matrice pendolarismo O-D per lavoro 2021 (comune→comune)"
+        url: "https://esploradati.istat.it/databrowser/DWL/PERMPOP/MATPEN/matrix_pendoLAVORO_2021.zip"
+        filename: matrix_pendoLAVORO_2021.zip
+        extract: true
+        format: zip
+    status: active
+    notes: >
+      Matrice origine-destinazione degli spostamenti sistematici giornalieri
+      residenza→lavoro (Censimento 2021), comune→comune. Scaricata dal file BULK
+      DWL (l'API SDMX /data non è disponibile sui dataflow BULK). ~1.6 MB.
+      NB: la matrice per STUDIO non è pubblicata da ISTAT per il 2021.
+      Alimenta MOBILITA_ACCESSIBILITA.
+
+  - key: n_istat_censimento_comuni
+    livello: nazionale
+    ente: "ISTAT — Censimento permanente, dettagli sui comuni (istruzione/lavoro/famiglie/cittadinanza)"
+    kind: download
+    adapter: null
+    proposed_adapter: http_download
+    url: "https://esploradati.istat.it/databrowser/#/it/censpop"
+    bulk_dataflows:
+      istr_lav_pen: "DCSS_BULK_ISTR_LAV_PEN_2 → DWL/PERMPOP/MUN/DCSS_ISTR_LAV_PEN_2"
+      fam_pop: "DCSS_BULK_FAM_POP → DWL/PERMPOP/MUN/DCSS_FAM_POP"
+      demcitmig: "DCSS_BULK_POP_DEMCITMIG → DWL/PERMPOP/MUN/DCSS_POP_DEMCITMIG"
+    topic: society
+    plan_types: [stato]
+    feeds_target: DEMOGRAFIA
+    status: todo
+    notes: >
+      Dettagli comunali dal Censimento permanente (istruzione/lavoro/pendolarismo,
+      famiglie, cittadinanza), livello comunale ("MUN"). BLOCCO: gli URL
+      DWL/PERMPOP/MUN/<flow> NON sono file diretti (302 → SPA JavaScript che compone
+      il download lato client); il nome reale dello zip è ignoto. L'API SDMX /data su
+      questi dataflow è troppo lenta (timeout). Serve intercettare la chiamata XHR
+      della SPA o trovare il nome zip esatto. Alimenta DEMOGRAFIA.
+
+  - key: n_colonnine_ricarica
+    livello: nazionale
+    ente: "Piattaforma Unica Nazionale (PUN) — Infrastrutture di ricarica elettrica"
+    kind: portal
+    adapter: null
+    proposed_adapter: pun_idr
+    url: "https://www.piattaformaunicanazionale.it/idr"
+    topic: utilitiesCommunication
+    plan_types: [stato]
+    feeds_target: ENERGIA_RETI
+    status: todo
+    notes: >
+      Colonnine di ricarica veicoli elettrici. NOTA UTENTE: incerto se i dati siano
+      scaricabili (verificare API/export). Alimenta ENERGIA_RETI / PUNTI_INTERESSE.
+
+  - key: n_mef_irpef
+    livello: nazionale
+    ente: "MEF — Dipartimento delle Finanze: dichiarazioni IRPEF e fiscalità locale per comune"
+    kind: portal
+    adapter: null
+    proposed_adapter: mef_finanze
+    url: "https://www1.finanze.gov.it/finanze/analisi_stat/public/index.php?search_class%5b0%5d=cCOMUNE&opendata=yes"
+    topic: economy
+    plan_types: [stato]
+    feeds_target: DEMOGRAFIA   # reddito/fiscalità come attributo socio-economico
+    status: todo
+    notes: >
+      Dichiarazioni IRPEF, fasce di reddito e fiscalità locale per comune (vari DB
+      open data del Dip. Finanze). Attributo socio-economico comunale.
+
+  - key: n_salute_presidi
+    livello: nazionale
+    ente: "Ministero della Salute — Open data presidi sanitari (farmacie, parafarmacie, posti letto)"
+    kind: html_resources
+    adapter: html_resources
+    url: "https://www.dati.salute.gov.it"
+    license: "IODL v2.0"
+    update_cadence: "farmacie/parafarmacie giornaliera; posti letto ospedalieri annuale (2023)"
+    topic: health
+    plan_types: [stato]
+    feeds_target: SERVIZI_POLARITA
+    html_resources:
+      - key: farmacie
+        title: "Farmacie (CSV)"
+        page: "https://www.dati.salute.gov.it/it/dataset/farmacie/"
+        base: "https://www.dati.salute.gov.it"
+        pattern: 'FRM_FARMA.*\.csv$'
+        limit: 1
+      - key: distributori_farmaci
+        title: "Distributori di farmaci (CSV)"
+        page: "https://www.dati.salute.gov.it/it/dataset/distributori-di-farmaci/"
+        base: "https://www.dati.salute.gov.it"
+        pattern: '\.csv$'
+        limit: 1
+    status: active
+    notes: >
+      Presidi sanitari (farmacie, distributori). NB: dati.salute.gov.it NON è CKAN;
+      i CSV hanno nome datato elencato nella pagina dataset → adapter html_resources
+      (scrape del link + download). Alimenta SERVIZI_POLARITA. Le farmacie hanno
+      indirizzo/comune ma NON coordinate native → per il layer punti serve geocoding
+      (o join per comune) in fase di compose.
+
+  - key: n_miur_scuole
+    livello: nazionale
+    ente: "MIM (MIUR) — Anagrafe scuole statali (a.s. 2025/26)"
+    kind: html_resources
+    adapter: html_resources
+    url: "https://dati.istruzione.it/opendata/opendata/catalogo/elements1/?area=Scuole"
+    update_cadence: annuale
+    school_year: "2025/26"
+    topic: society
+    plan_types: [stato]
+    feeds_target: SERVIZI_POLARITA
+    html_resources:
+      - key: anagrafe_scuole
+        title: "Anagrafe scuole statali (CSV, ultimo a.s.)"
+        page: "https://dati.istruzione.it/opendata/opendata/catalogo/elements1/?area=Scuole"
+        base: "https://dati.istruzione.it/opendata/opendata/catalogo/elements1/"
+        pattern: 'SCUANAGRAFESTAT.*\.csv$'
+        limit: 1
+    status: active
+    notes: >
+      Anagrafe scuole statali per comune (plessi). dati.istruzione.it NON è CKAN;
+      i CSV hanno nome datato nella pagina catalogo → adapter html_resources
+      (prende il più recente). Alimenta SERVIZI_POLARITA. Ogni voce = plesso.
+
+  - key: n_siope
+    livello: nazionale
+    ente: "MEF/Banca d'Italia — SIOPE (incassi e pagamenti degli enti, cassa)"
+    kind: portal
+    adapter: null
+    proposed_adapter: siope
+    url: "https://www.siope.it/Siope/dispatchHome"
+    topic: economy
+    plan_types: [stato]
+    feeds_target: TRASPARENZA_APPALTI   # movimenti di cassa dell'ente
+    status: todo
+    notes: >
+      Incassi e pagamenti dei comuni per codici gestionali standard. Sono movimenti
+      di CASSA (non di competenza): il saldo di cassa non è un avanzo di bilancio.
+      DA RIVEDERE (nota utente).
+
+  - key: n_ispra_suolo
+    livello: nazionale
+    ente: "ISPRA — Consumo di suolo"
+    kind: portal
+    adapter: null
+    proposed_adapter: ispra
+    url: "https://www.isprambiente.gov.it/it/attivita/suolo-e-territorio/suolo/il-consumo-di-suolo"
+    topic: environment
+    plan_types: [stato]
+    feeds_target: ANALISI_URBANISTICA
+    status: todo
+    notes: >
+      Consumo di suolo per comune (ISPRA). Parte del "profilo ambientale" del
+      comune. NB: parte di questi dati sono GIÀ presenti in altre fonti (nota
+      utente: "questo già lo abbiamo in parte") → verificare sovrapposizioni.
+      Alimenta ANALISI_URBANISTICA.
+
+  - key: n_ispra_idrogeo
+    livello: nazionale
+    ente: "ISPRA — IdroGEO (rischio idrogeologico, frane e alluvioni)"
+    kind: portal
+    adapter: null
+    proposed_adapter: ispra
+    url: "https://idrogeo.isprambiente.it/app/"
+    topic: geoscientificInformation
+    plan_types: [stato]
+    feeds_target: RISCHI_PERICOLOSITA
+    status: todo
+    notes: >
+      Piattaforma IdroGEO: pericolosità/rischio da frana (IFFI) e idraulico per
+      comune. Alimenta RISCHI_PERICOLOSITA. Verificare API/export della piattaforma.
+
+  - key: n_ispra_rifiuti
+    livello: nazionale
+    ente: "ISPRA — Catasto rifiuti"
+    kind: portal
+    adapter: null
+    proposed_adapter: ispra
+    url: "https://www.catasto-rifiuti.isprambiente.it/"
+    topic: environment
+    plan_types: [stato]
+    feeds_target: AMBIENTE_RIFIUTI
+    status: todo
+    notes: >
+      Catasto rifiuti ISPRA: produzione e gestione rifiuti per comune. Parte del
+      "profilo ambientale" del comune.
+
+  - key: n_runts
+    livello: nazionale
+    ente: "Ministero del Lavoro — RUNTS (Registro Unico Nazionale Terzo Settore)"
+    kind: portal
+    adapter: null
+    proposed_adapter: runts
+    url: "https://servizi.lavoro.gov.it/runts/it-it/Lista-enti"
+    license: "D.Lgs 117/2017 (Codice del Terzo Settore)"
+    update_cadence: "snapshot settimanale (lunedì); upstream giornaliero"
+    topic: society
+    plan_types: [stato]
+    feeds_target: SERVIZI_POLARITA
+    status: todo
+    notes: >
+      Enti del Terzo Settore iscritti al RUNTS (attivo dal 23/11/2021). Tessuto
+      associativo/no-profit per comune. Alimenta SERVIZI_POLARITA.
+
+  - key: n_istat_turismo
+    livello: nazionale
+    ente: "ISTAT — Capacità e movimento delle strutture ricettive (2024)"
+    kind: sdmx
+    adapter: null
+    proposed_adapter: istat_sdmx
+    url: "https://www.istat.it/statistiche-per-temi/tutti-i-comunicati-stampa/?tema=Turismo"
+    topic: economy
+    plan_types: [stato]
+    feeds_target: TURISMO_RICETTIVITA
+    status: todo
+    notes: >
+      Strutture ricettive e posti letto per comune 2024 (alberghiero + extra:
+      agriturismi, B&B), con arrivi/presenze sul bacino provinciale. DA RIVEDERE
+      (nota utente): individuare i dataflow SDMX corretti.
+
+  - key: n_aci_opendata
+    livello: nazionale
+    ente: "ACI — Open data (parco circolante, incidentalità, nuove iscrizioni)"
+    kind: portal
+    adapter: null
+    proposed_adapter: aci_opendata
+    url: "https://aci.gov.it/attivita-e-progetti/studi-e-ricerche/open-data/"
+    topic: transportation
+    plan_types: [stato]
+    feeds_target: MOBILITA_ACCESSIBILITA
+    status: todo
+    notes: >
+      Parco veicoli circolante, incidentalità stradale e nuove iscrizioni per
+      comune/provincia. Alimenta MOBILITA_ACCESSIBILITA.

@@ -1,4 +1,4 @@
-"""Stadio 04 · COMPOSE  [STUB — contratto definito, non implementato].
+"""Stadio 04 · COMPOSE  [contratto dei prodotti finali].
 
 Scopo: accorpare i layer riconosciuti nella STESSA classe canonica in un layer finale
 più informativo, per territorio, SENZA perdere la tracciabilità dell'origine.
@@ -18,9 +18,73 @@ Regole:
     guidata da canonical_taxonomy.yaml.
 
 Riferimento concettuale: gli script build_piemonte_*.py dell'app Torino.
+
+I tre obiettivi correnti e le relative regole sono in
+``registry/composition_targets.yaml``. Il file include anche il gate di
+copertura che impedisce di classificare come verde un territorio non
+completamente verificato.
 """
 from __future__ import annotations
 
+from typing import Any, Callable
 
-def run(*args, **kwargs):  # pragma: no cover
-    raise NotImplementedError("stage_04_compose: da implementare (prossimo passo del pilota).")
+from lib import compose_engine
+
+
+def run(
+    targets: list[str] | None = None,
+    scope: dict[str, Any] | None = None,
+    progress: Callable[[int, int], None] | None = None,
+    call_event: Callable[[dict[str, Any]], None] | None = None,
+    **_kwargs: Any,
+) -> dict[str, Any]:
+    """Compone i target selezionati per il territorio dello scope.
+
+    Ogni target viene eseguito separatamente: un input mancante blocca soltanto
+    quel prodotto e resta visibile nel riepilogo della run.
+    """
+    selected = list(targets or [])
+    territory = dict(scope or {})
+    if not selected:
+        raise ValueError("Selezionare almeno un target di composizione.")
+    results: list[dict[str, Any]] = []
+    total = len(selected)
+    for index, target in enumerate(selected, start=1):
+        if call_event:
+            call_event({
+                "id": f"compose:{target}:{territory.get('key', '')}",
+                "label": target,
+                "status": "running",
+                "current": index - 1,
+                "total": total,
+            })
+        try:
+            result = compose_engine.compose_target(target, territory)
+        except Exception as exc:
+            result = {"target": target, "status": "failed", "message": str(exc)}
+        results.append(result)
+        if call_event:
+            call_event({
+                "id": f"compose:{target}:{territory.get('key', '')}",
+                "label": target,
+                "status": result.get("status", "completed"),
+                "current": index,
+                "total": total,
+                "message": result.get("message", ""),
+            })
+        if progress:
+            progress(index, total)
+    failed = [r for r in results if r.get("status") in {"failed", "blocked"}]
+    partial = [r for r in results if r.get("status") == "partial"]
+    status = "completed"
+    if len(failed) == len(results):
+        status = "failed"
+    elif failed or partial:
+        status = "partial"
+    return {
+        "status": status,
+        "message": f"Composizione terminata: {len(results) - len(failed)}/{len(results)} target prodotti.",
+        "targets": selected,
+        "scope": territory,
+        "results": results,
+    }

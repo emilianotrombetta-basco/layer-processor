@@ -23,6 +23,26 @@ version: 1
 
 rules:
 
+  # ---- Fonte nazionale HOTOSM / OpenStreetMap ----------------------------
+  - canonical: POI_PUNTUALI
+    any: ["hotosm italia punti di interesse puntuali"]
+    confidence: high
+    examples: ["HOTOSM Italia — Punti di interesse puntuali"]
+
+  - canonical: USI_POI_POLIGONALI
+    any: ["hotosm italia usi e punti di interesse poligonali"]
+    confidence: high
+    examples: ["HOTOSM Italia — Usi e punti di interesse poligonali"]
+
+  # ---- Fonte nazionale MIMIT — distributori carburante --------------------
+  - canonical: DISTRIBUTORI_CARBURANTE
+    topic_in: [economy]
+    any: ["anagrafica impianti attivi", "impianti attivi distributori",
+          "anagrafica impianti", "impianti carburante"]
+    not_any: ["prezzi"]
+    confidence: high
+    examples: ["Anagrafica impianti attivi (distributori)"]
+
   # ---- Economia -----------------------------------------------------------
   - canonical: COMMERCIO
     topic_in: [economy]
@@ -46,7 +66,7 @@ rules:
     topic_in: [economy]
     any: ["aree produttive", "ambiti produttivi", "aziende principali",
           "aree critiche", "poli produttivi", "distretti industriali",
-          "insediamenti produttivi"]
+          "insediamenti produttivi", "sportello unico per le attivita produttive"]
     confidence: high
     examples: ["PTC 2 - Aree produttive principali", "PTC 2 - Ambiti produttivi",
                "PTC 2 - Aziende principali", "PTC 2 - Aree critiche"]
@@ -61,7 +81,7 @@ rules:
   - canonical: VIABILITA
     topic_in: [transportation]
     any: ["viabilita", "strade statali", "strade provinciali", "strade comunali",
-          "autostrade", "rete stradale", "grafo stradale", "elemento stradale"]
+          "autostrade", "strade", "rete stradale", "grafo stradale", "elemento stradale"]
     not_any: ["traffico", "svr", "ciclabil", "ciclopedonal"]
     confidence: high
     examples: ["Viabilita 1:100.000 - Strade statali - Storico", "Grafo stradale"]
@@ -76,13 +96,13 @@ rules:
 
   - canonical: METRO
     topic_in: [transportation]
-    any: ["metropolitana"]
+    any: ["metropolitana", "metrotramvie"]
     confidence: high
     examples: ["Mobilità - Metropolitana - Linee"]
 
   - canonical: FERROVIA
     topic_in: [transportation]
-    any: ["ferrovia", "ferroviarie", "ferroviaria", "stazioni ferroviarie",
+    any: ["ferrovia", "ferrovie", "ferroviarie", "ferroviaria", "stazioni ferroviarie",
           "linee ferroviarie", "rete ferroviaria"]
     confidence: high
     examples: ["PTC 2 - Stazioni ferroviarie"]
@@ -122,7 +142,8 @@ rules:
     topic_in: [environment, biota]
     any: ["aree protette", "area protetta", "parchi", "parco naturale", "riserve",
           "riserva naturale", "natura 2000", "rete natura", "sic ", "zsc", "zps",
-          "siti di importanza comunitaria", "zone speciali di conservazione"]
+          "siti di importanza comunitaria", "zone speciali di conservazione",
+          "zone di protezione speciale"]
     confidence: high
     examples: ["Aree protette", "Siti Rete Natura 2000"]
 
@@ -130,7 +151,8 @@ rules:
     topic_in: [environment, biota, planningCadastre]
     any: ["corridoi ecologici", "rete ecologica", "connettivita ecologica",
           "aree di valore ecologico", "tappe di attraversamento", "varchi ecologici",
-          "connessione ecologica", "corridoi di connessione", "nodi ecologici"]
+          "connessione ecologica", "corridoi di connessione", "nodi ecologici",
+          "gangli", "rete verde"]
     confidence: high
     examples: ["Corridoi ecologici", "Connettività ecologica",
                "PTC 2 - Corridoi di connessione ecologica", "Ppr - Varchi ecologici (tav. P5)"]
@@ -143,24 +165,100 @@ rules:
           "rilevanza paesaggistica", "interesse paesaggistico", "rilevanza visiva",
           "bordi urbani", "fulcri del costruito", "belvedere", "luoghi di villeggiatura",
           "patrimonio mondiale unesco", "bene ex l", "elementi caratterizzanti",
-          "elementi strutturanti", "struttura insediativa storica"]
+          "elementi strutturanti", "struttura insediativa storica",
+          "elevata naturalita", "specifico valore storico",
+          "specifica tutela", "scenario lacuale", "navigli storici",
+          "naviglio grande", "naviglio martesana", "sistema vallivo del fiume po",
+          "arte rupestre", "crespi d adda", "longobardi in italia",
+          "cenacolo", "ferrovia retica", "difesa veneziane", "mantova e sabbioneta",
+          "monte san giorgio", "sacri monti", "palafitticoli", "geositi",
+          "oltrepo pavese", "strade panoramiche", "tracciati guida paesaggistici",
+          "visuali sensibili", "punti di osservazione del paesaggio",
+          "classi di sensibilita paesistica", "vincolo archeologico",
+          "rischio archeologico", "beni di interesse storico", "alberi monumentali",
+          "aree boscate", "fasce boscate", "filari e siepi",
+          "giardini e parchi storici", "insediamenti rurali",
+          "luoghi delle battaglie", "luoghi di culto", "marcite tutelate",
+          "siti unesco"]
     confidence: medium
     examples: ["Ppr - Aree ed elementi di specifico interesse geomorfologico e naturalistico con rilevanza visiva (tav. P4)",
                "Ppr - Vette (tav. P4)", "Ppr - Aree di montagna (tav. P4)",
                "Ppr - Elementi strutturanti i bordi urbani (tav. P4)",
                "Ppr - Aree rurali di specifico interesse paesaggistico"]
 
+  # Tutele paesaggistiche dei PTCP/PTAV emiliano-romagnoli. Le formulazioni
+  # sono quelle osservate nei nove mosaici provinciali ufficiali Moka.
+  - canonical: VINCOLI_PAESAGGISTICI
+    topic_in: [planningCadastre]
+    any: ["sistema collinare", "sistema della montagna", "sistema costiero",
+          "zone di tutela della costa", "riqualificazione della costa",
+          "citta delle colonie", "colonie marine",
+          "sistema forestale boschivo", "sistema delle aree forestali",
+          "formazioni boschive", "assetto vegetazionale", "piante monumentali",
+          "esemplari arborei", "siepi e filari", "patrimonio geologico",
+          "calanchi", "dossi di pianura", "paleodossi", "sistemi dunosi",
+          "dossi e le dune", "viabilita storica", "viabilita panoramica",
+          "strade ducali", "strade romane", "strade medievali",
+          "canali storici", "idrografia storica", "bonifiche storiche",
+          "centuriazione", "struttura centuriata",
+          "interesse storico archeologico", "interesse storico architettonico",
+          "interesse storico testimoniale", "complessi archeologici",
+          "materiali archeologici", "fascia di rispetto archeologico",
+          "area di tutela dell acquedotto romano", "partecipanze", "maceri",
+          "sistema forestale e boschivo", "zone di particolare interesse pae amb",
+          "dossi", "consistenza archeologica", "limite storico all insediamento",
+          "ponte guado valico", "dossi di ambito fluviale",
+          "zone urbanizzate in ambito costiero", "filari",
+          "zone ed elementi di interesse sto archeo"]
+    confidence: high
+    examples: ["PTCP Modena - Sistema forestale boschivo",
+               "PTCP Ravenna - Sistemi dunosi costieri di rilevanza paesistica",
+               "PTCP Reggio Emilia - Zone ed elementi di interesse storico archeologico"]
+
+  - canonical: PRG_EDIFICI_STORICI
+    topic_in: [planningCadastre]
+    any: ["insediamenti urbani storici", "strutture insediative storiche non urbane",
+          "zone urbane storiche", "strutture di interesse storico testimoniale",
+          "complessi architettonici storici non urbani",
+          "strutture insediative storiche"]
+    confidence: high
+    examples: ["PTCP Bologna - Principali complessi architettonici storici non urbani",
+               "PTCP Reggio Emilia - Strutture insediative storiche non urbane"]
+
+  - canonical: AREE_PROTETTE
+    topic_in: [planningCadastre]
+    any: ["zone di tutela naturalistica", "interesse naturalistico e paesaggistico",
+          "biotopi umidi", "zone di tutela agronaturalistica"]
+    confidence: high
+    examples: ["PTCP Parma - Zone di tutela naturalistica",
+               "PTCP Piacenza - Biotopi umidi"]
+
   - canonical: RISCHIO_IDRAULICO
     topic_in: [inlandWaters, geoscientificInformation]
     any: ["pgra", "pericolosita alluvioni", "pericolosita da alluvione", "aree allagabili",
-          "fasce fluviali", "fascia fluviale", "rischio idraulico", "alluvion"]
+          "fasce fluviali", "fascia fluviale", "fasce pai",
+          "rischio idraulico", "alluvion"]
     confidence: high
     examples: ["PGRA - Aree allagabili", "PAI - Fasce fluviali"]
+
+  - canonical: RISCHIO_IDRAULICO
+    topic_in: [planningCadastre]
+    any: ["zone di deflusso di piena", "fascia a1 alveo attivo",
+          "fascia a2 alveo di piena", "fascia a3 alveo di piena",
+          "fascia b1 zona di conservazione del sistema fluviale",
+          "fascia b3 zona ad elevato grado di antropizzazione",
+          "fascia c1 zona extrargine", "fascia c2 zona non protetta",
+          "difese idrauliche", "golene del po", "fascia b2 zona di recupero ambientale",
+          "zona di tutela assoluta", "zona di tutela ordinaria"]
+    confidence: high
+    examples: ["PTCP Piacenza - Fascia A1 - Alveo attivo o inciso",
+               "PTCP Bologna - Zone di deflusso di piena"]
 
   - canonical: DISSESTO_GEOLOGICO
     topic_in: [geoscientificInformation]
     any: ["frane", "frana", "dissesto", "aree inondabili", "aree instabili",
-          "crolli", "bdgeo", "valanghe", "colate"]
+          "crolli", "bdgeo", "valanghe", "colate",
+          "pericolosita geologica", "area di pericolosita geologica"]
     confidence: high
     examples: ["BDGeo100 - Frane", "Aree inondabili", "Aree instabili"]
 
@@ -173,15 +271,29 @@ rules:
   - canonical: ACQUE
     topic_in: [inlandWaters]
     any: ["reticolo idrografico", "corsi d'acqua", "corpi idrici", "laghi",
-          "torrenti", "fiumi", "acque superficiali"]
+          "torrenti", "fiumi", "acque superficiali", "fontanili",
+          "pozzi pubblici", "manufatti idraulici", "piezometria",
+          "stato qualitativo", "zona di ricarica", "stagni", "lanche",
+          "zone umide"]
     not_any: ["fasce", "pericolosita", "allagabili"]
     confidence: medium
     examples: ["Reticolo idrografico"]
 
+  - canonical: ACQUE
+    topic_in: [planningCadastre]
+    any: ["reticolo idrografico", "invasi ed alvei", "alvei attivi e invasi",
+          "corsi d acqua meritevoli di tutela",
+          "caratteri ambientali di laghi bacini e corsi d acqua",
+          "corpi idrici superficiali e sotterranei", "fasce di tutela fluviale",
+          "fascia di integrazione dell ambito fluviale"]
+    confidence: high
+    examples: ["PTCP Modena - Invasi ed alvei di laghi, bacini e corsi d'acqua",
+               "PTCP Forlì-Cesena - Reticolo idrografico"]
+
   - canonical: AGRICOLTURA
-    topic_in: [farming]
+    topic_in: [farming, environment, planningCadastre]
     any: ["agricol", "uso del suolo", "capacita d'uso", "interesse agronomico",
-          "colture", "aree rurali"]
+          "colture", "aree rurali", "marcite", "sistema del territorio rurale"]
     confidence: medium
     examples: ["Aree agricole di interesse agronomico", "Uso del suolo"]
 
@@ -241,7 +353,8 @@ rules:
   - canonical: PRG_EDIFICI_STORICI
     topic_in: [planningCadastre, structure]
     any: ["edifici storici", "edifici di valore storico", "centri storici",
-          "nuclei storici", "patrimonio edilizio storico", "beni storici"]
+          "nuclei storici", "nuclei di antica formazione",
+          "patrimonio edilizio storico", "beni storici"]
     confidence: medium
     examples: ["Edifici di interesse storico"]
 
@@ -249,15 +362,46 @@ rules:
     topic_in: [planningCadastre]
     any: ["piano regolatore", "prgc", "zonizzazione", "azzonamento",
           "destinazione d'uso", "zone urbanistiche", "ambiti normativi",
-          "mosaicatura prg", "prg vigente"]
+          "mosaicatura prg", "prg vigente", "modalita attuative",
+          "tessuto urbano consolidato", "servizi e impianti",
+          "carta del consumo di suolo", "tessuto urbanizzato",
+          "perimetri auc", "ambiti di urbanizzazione consolidata"]
     not_any: ["edifici storici", "trasformazione", "catasto"]
     confidence: medium
     examples: ["PRG - Zonizzazione", "Mosaicatura PRG"]
 
+  - canonical: PIANI_MATURITA
+    topic_in: [planningCadastre, boundaries]
+    any: ["stato di approvazione del pgt", "stato pgt", "scheda pgtweb",
+          "inventario dei piani", "fasi e stato di caricamento",
+          "iter di adeguamento prg", "maturita del piano",
+          "stato della pianificazione in veneto"]
+    confidence: high
+    examples: ["Stato di approvazione del PGT per comune", "Scheda PGTWEB per comune"]
+
+  - canonical: VINCOLI_COMUNALI
+    topic_in: [planningCadastre, environment]
+    any: ["fasce di rispetto", "limitazioni per servitu",
+          "limitazioni in aree limitrofe", "aree sottoposte a particolari limitazioni",
+          "piano cave", "rischio di incidente rilevante"]
+    confidence: high
+    examples: ["PGT — Fasce di rispetto ferroviario",
+               "PGT — Limitazioni per servitù militari"]
+
+  - canonical: DISSESTO_GEOLOGICO
+    topic_in: [geoscientificInformation]
+    any: ["fattibilita geologica", "pericolosita sismica",
+          "componente geologica pgt"]
+    confidence: high
+    examples: ["PGT — Fattibilità geologica",
+               "PGT — Pericolosità sismica poligonale"]
+
   - canonical: TRASFORMAZIONI
     topic_in: [planningCadastre]
     any: ["ambiti di trasformazione", "aree di trasformazione", "progetti unitari",
-          "rigenerazione urbana", "programmi complessi"]
+          "rigenerazione urbana", "programmi complessi", "aree dismesse",
+          "aree abbandonate", "aree degradate", "aree di progetto",
+          "limiti di progetto"]
     confidence: high
     examples: ["Ambiti di trasformazione", "Progetti unitari"]
 
@@ -268,7 +412,8 @@ rules:
     examples: ["OpenCUP"]
 
   - canonical: INTERVENTI
-    any: ["cup", "opere pubbliche", "interventi finanziati", "progetti finanziati",
+    any: ["codice unico di progetto", "codice cup", "cup localizzati",
+          "opere pubbliche", "interventi finanziati", "progetti finanziati",
           "opencoesione", "programmi operativi"]
     not_any: ["opencup"]
     confidence: low
@@ -285,3 +430,301 @@ rules:
           "opere pubbliche censite"]
     confidence: high
     examples: ["AINOP - infrastrutture"]
+
+  # ==========================================================================
+  # ESTENSIONI · Trentino (PUP), Alto Adige (BZ) e Torino mosaico PRGC
+  # Aggiunte da Claude (sessione 2026-07-30) per attivare il recognize su
+  # r_tn_*, r_bz_* e p_to_prgc_mosaico. Regole PURAMENTE ADDITIVE (il matcher
+  # tiene il best score: non tolgono nulla alle regole di Codex).
+  #
+  # Nota tecnica di progetto:
+  #   - I layer PUP/BZ portano quasi tutti topic=planningCadastre (sono "piani"),
+  #     che farebbe scattare il gate topic_in di molte classi. Perciò queste
+  #     regole OMETTONO topic_in (una regola senza topic_in bypassa il gate).
+  #   - Per evitare falsi positivi cross-regione le keyword sono ULTRA-SPECIFICHE:
+  #     · Trentino → codici PUP univoci ("z101 p pup", "e105 p pup", ...);
+  #     · Bolzano  → termini tedeschi (non collidono con le regioni italiane).
+  # ==========================================================================
+
+  # ---- Trentino · PUP (codici) --------------------------------------------
+  - canonical: PRG_EDIFICI_STORICI
+    any: ["a101 n pup", "a101 p pup"]
+    confidence: high
+    examples: ["Insediamenti storici principali (a101_n_pup)", "Insediamenti storici (a101_p_pup)"]
+
+  - canonical: AGRICOLTURA
+    any: ["e105 p pup", "e107 p pup", "e108 p pup"]
+    confidence: high
+    examples: ["Foreste demaniali e boschi di pregio (e105_p_pup)", "Pascoli (e107_p_pup)",
+               "Rocce e rupi boscate (e108_p_pup)"]
+
+  - canonical: FERROVIA
+    any: ["f426 l pup", "f426 l ext"]
+    confidence: high
+    examples: ["Ferrovia (f426_l_pup)", "Ferrovia extra PAT (f426_l_ext)"]
+
+  - canonical: SOSTA_ACCESSI
+    any: ["f436 p pup"]
+    confidence: high
+    examples: ["Aereoporti - interporti (f436_p_pup)"]
+
+  - canonical: ENERGIA
+    any: ["f444 l pup", "p005 l pup", "p017 n pup"]
+    confidence: high
+    examples: ["Elettrodotti (f444_l_pup)", "Condotte forzate (p005_l_pup)",
+               "Centrali idroelettriche (p017_n_pup)"]
+
+  - canonical: VIABILITA
+    any: ["f450 l pup", "p029 l pup", "p029 l ext",
+          "viabilita esistente", "viabilita in progetto"]
+    confidence: high
+    examples: ["Gallerie (f450_l_pup)", "Viabilità esistente e di progetto (p029_l_pup)",
+               "V - Viabilità - Esistente", "V - Viabilità - In progetto"]
+
+  # ---- Torino · mosaico PRGC (destinazioni d'uso) --------------------------
+  # Le classi di destinazione del mosaico PRGC di Torino (riferimento) → PRG_ZONING.
+  - canonical: PRG_ZONING
+    topic_in: [planningCadastre]
+    any: ["residenziale", "produttivo", "terziario", "polifunzionale",
+          "turistico ricettivo", "servizi generali", "compromissione territoriale",
+          "verde privato inedificabile", "servizi alle persone",
+          "servizi alle attivita", "servizi verde sport", "servizi privati non assoggettati",
+          "servizi non differenziati"]
+    confidence: high
+    examples: ["R - Residenziale", "P - Produttivo", "T - Terziario",
+               "M - Polifunzionale/Misto", "H - Turistico-Ricettivo",
+               "SG - Servizi generali - Sanitari-ospedalieri",
+               "CT - Compromissione territoriale - Nuovo impianto"]
+
+  - canonical: COMMERCIO
+    any: ["p019 n pup"]
+    confidence: high
+    examples: ["Centri commerciali di attrazione sovracomunale (p019_n_pup)"]
+
+  - canonical: PRG_ZONING
+    any: ["p023 l pup", "p024 p pup", "p034 p ext"]
+    confidence: high
+    examples: ["Limite espansione abitati (p023_l_pup)",
+               "Aree insediative, produttive e servizi (p024_p_pup)"]
+
+  - canonical: ACQUE
+    any: ["p004 p pup", "p032 n pup", "z101 p pup", "z101 p ext", "z102 p pup",
+          "z104 l pup", "z310 p pup", "z312 p pup", "z323 n pup", "z324 n pup",
+          "z325 n pup"]
+    confidence: high
+    examples: ["Fiume Adige (p004_p_pup)", "Laghi (z101_p_pup)", "Alvei (z102_p_pup)",
+               "Fiumi e torrenti (z104_l_pup)", "Sorgenti termali (p032_n_pup)",
+               "Aree di protezione fluviale (z312_p_pup)", "Sorgenti (z323_n_pup)",
+               "Pozzi (z325_n_pup)"]
+
+  - canonical: DISSESTO_GEOLOGICO
+    any: ["p003 p pup", "p031 l pup", "z103 p pup", "z321 n pup"]
+    confidence: high
+    examples: ["Conoidi alluvionali (p003_p_pup)", "Sistemi di faglie (p031_l_pup)",
+               "Ghiacciai (z103_p_pup)", "Elementi geologici e geomorfologici (z321_n_pup)"]
+
+  - canonical: AREE_PROTETTE
+    any: ["z307 p pup", "z307 p ext", "z308 p pup", "z309 p pup", "z309 p ext",
+          "z313 p pup", "z316 p pup", "z317 p pup"]
+    confidence: high
+    examples: ["Parchi naturali e nazionali Provinciali (z307_p_pup)",
+               "Riserve naturali Provinciali (z308_p_pup)",
+               "Siti e zone Natura 2000 PAT (z309_p_pup)",
+               "ZPS zone di protezione speciale (z313_p_pup)",
+               "Riserve naturali Provinciali - Biotopi (z316_p_pup)"]
+
+  - canonical: VINCOLI_PAESAGGISTICI
+    any: ["p012 p pup", "p015 n pup", "p020 p pup", "p025 n pup", "p030 p pup",
+          "z201 p pup", "z311 n pup", "z322 n pup", "z326 p pup"]
+    confidence: high
+    examples: ["Ambiti elementari di paesaggio (p012_p_pup)",
+               "Sistemi complessi di paesaggio (p020_p_pup)",
+               "Paesaggi di particolare pregio (p025_n_pup)",
+               "Area di tutela ambientale (z201_p_pup)",
+               "Manufatti e siti archeologici (z311_n_pup)",
+               "Beni del patrimonio dolomitico (z326_p_pup)"]
+
+  # ---- Trentino · Pericolosità PAI -----------------------------------------
+  - canonical: DISSESTO_GEOLOGICO
+    topic_in: [geoscientificInformation]
+    any: ["sintesi finale pericolosita"]
+    confidence: high
+    examples: ["Sintesi finale pericolosità"]
+
+  - canonical: RISCHIO_IDRAULICO
+    topic_in: [geoscientificInformation, inlandWaters]
+    any: ["ambiti fluviali idraulici"]
+    confidence: high
+    examples: ["Ambiti fluviali idraulici"]
+
+  # ---- Alto Adige · Piani territoriali (BZ) --------------------------------
+  # Keyword tedesche = univoche fra le regioni italiane → nessun topic_in.
+  - canonical: PRG_ZONING
+    any: ["baugebiete", "durchfuhrungplanung", "durchfuhrungsplane",
+          "grundstucksteilungsplane"]
+    confidence: high
+    examples: ["Baugebiete - Insediamenti", "Zonen mit Durchführungplanung",
+               "Durchführungspläne - Piani di attuazione"]
+
+  - canonical: VINCOLI_PAESAGGISTICI
+    any: ["landschaftsplan", "landschaftsschutzgebiete", "landschaftselemente",
+          "naturdenkmaler", "garten und parkanlagen", "ensembleschutzplan"]
+    confidence: high
+    examples: ["Abgrenzungen von Landschaftsplänen", "Landschaftsschutzgebiete",
+               "Geschützte Landschaftselemente", "Naturdenkmäler - Monumenti naturali",
+               "Ensembleschutzplan - Piano di tutela degli insiemi"]
+
+  - canonical: AREE_PROTETTE
+    any: ["biotope", "natura 2000 gebiete", "naturparke"]
+    confidence: high
+    examples: ["Biotope - Biotopi", "Natura 2000 Gebiete", "Naturparke und Nationalpark"]
+
+  - canonical: VIABILITA
+    any: ["verkehrsflachen"]
+    confidence: high
+    examples: ["Verkehrsflächen - Aree per la viabilità"]
+
+  - canonical: SOSTA_ACCESSI
+    any: ["verkehrsbeschrankungen"]
+    confidence: high
+    examples: ["Verkehrsbeschränkungen - Limitazioni al traffico"]
+
+  - canonical: ENERGIA
+    any: ["leitungen"]
+    confidence: high
+    examples: ["Leitungen - Infrastrutture a rete"]
+
+  - canonical: VINCOLI_COMUNALI
+    any: ["banngebiete"]
+    confidence: high
+    examples: ["Banngebiete und spezielle Bindungen - Aree di rispetto e vincoli"]
+
+  # Gefahrenzonenplan (Piano Zone di Pericolo): distinguo per sotto-tipo
+  - canonical: RISCHIO_IDRAULICO
+    any: ["wassergefahren"]
+    confidence: high
+    examples: ["Gefahrenzonenplan: Wassergefahren - Pericoli idraulici"]
+
+  - canonical: DISSESTO_GEOLOGICO
+    any: ["massenbewegung", "lawinen", "geologische risikozonen",
+          "geologische haupteinheiten", "geomorphologische elemente",
+          "hauptstorungen", "blockgletscher", "steinschlagschutzbauten",
+          "erdbeben", "conoidi"]
+    confidence: high
+    examples: ["Gefahrenzonenplan: Massenbewegungen - Frane",
+               "Gefahrenzonenplan: Lawinen - Valanghe",
+               "Geologische Haupteinheiten - Unità geologiche principali",
+               "Hauptstörungen - Principali faglie",
+               "Steinschlagschutzbauten - Opere paramassi",
+               "Erdbeben - Terremoti"]
+
+  # ---- Alto Adige · Idrologia (BZ) -----------------------------------------
+  - canonical: ACQUE
+    any: ["ableitungen", "gletscherinventar", "grundwasserpegel",
+          "pegelmessstellen", "wassereinzugsgebiete", "trinkwasserschutzgebiete",
+          "seenschutzflachen", "quellokologie", "stauanlagen"]
+    confidence: high
+    examples: ["Ableitungen - Derivazioni", "Gletscherinventar - Catasto dei ghiacciai",
+               "Wassereinzugsgebiete - Bacini imbriferi",
+               "Trinkwasserschutzgebiete - Aree di tutela dell'acqua potabile",
+               "Stauanlagen - Dighe"]
+
+  # ---- Trentino · POI / servizi delle Comunità di Valle --------------------
+  - canonical: SERVIZI_POI
+    any: ["luoghi e punti di interesse", "punti di interesse",
+          "servizi sul territorio"]
+    confidence: high
+    examples: ["Luoghi e punti di interesse del Comunità della Paganella",
+               "Servizi sul territorio del Comunità delle Giudicarie"]
+
+  # ---- Emilia-Romagna · Moka PUG / PSC -----------------------------------
+  - canonical: PRG_ZONING
+    any: ["pug territorio urbanizzato", "pug classificazione territorio",
+          "pug piano dell arenile", "pug disciplina regolativa ordinaria",
+          "psc classificazione del territorio", "psc assetto per ambiti"]
+    confidence: high
+    examples: ["PUG — Classificazione territorio", "PSC — Assetto per ambiti"]
+
+  - canonical: PRG_EDIFICI_STORICI
+    any: ["pug sistema insediativo storico"]
+    confidence: high
+    examples: ["PUG — Sistema insediativo storico"]
+
+  - canonical: TRASFORMAZIONI
+    any: ["pug obiettivi della strategia", "pug disciplina accordi operativi",
+          "pug interventi qualita urbana ed ecologico ambientale",
+          "pug aree trasformate"]
+    confidence: high
+    examples: ["PUG — Disciplina accordi operativi", "PUG — Aree trasformate"]
+
+  - canonical: SERVIZI_POI
+    any: ["pug dotazioni territoriali", "psc dotazioni puntuali",
+          "psc dotazioni lineari", "psc dotazioni poligonali"]
+    confidence: high
+    examples: ["PUG — Dotazioni territoriali (Poligoni)", "PSC — Dotazioni puntuali"]
+
+  - canonical: VIABILITA
+    any: ["psc mobilita puntuale", "psc mobilita lineare", "psc mobilita poligonale"]
+    confidence: high
+    examples: ["PSC — Mobilità lineare"]
+
+  - canonical: PIANI_MATURITA
+    any: ["psc comuni presenti in banca dati"]
+    confidence: high
+    examples: ["PSC — Comuni presenti in banca dati"]
+
+  # ==========================================================================
+  # ESTENSIONI · Friuli-Venezia Giulia (IRDAT) — aggiunte da Claude 2026-07-30.
+  # PPR: nomi tecnici prefissati "v_" (univoci FVG) → keyword senza topic_in,
+  # nessun rischio cross-regione. SITI_PROT/ZONE_VINC: sigle distintive.
+  # Regole additive (best score): non toccano le regole di Codex.
+  # ==========================================================================
+
+  - canonical: ACQUE
+    any: ["v corsi acqua", "v laghi", "v ghiacciai", "v aree umide"]
+    confidence: high
+    examples: ["v_corsi_acqua_aree_tutelate", "v_laghi", "v_ghiacciai", "v_aree_umide"]
+
+  - canonical: RETE_ECOLOGICA
+    any: ["v direttrici connettivita", "v fasce tampone core",
+          "v aree interesse regionale rer"]
+    confidence: high
+    examples: ["v_direttrici_connettivita", "v_fasce_tampone_core",
+               "v_aree_interesse_regionale_rer"]
+
+  - canonical: CICLABILI
+    any: ["v viabilita lenta ciclovie"]
+    confidence: high
+    examples: ["v_viabilita_lenta_ciclovie", "v_viabilita_lenta_ciclovie_locale"]
+
+  - canonical: TRASFORMAZIONI
+    any: ["v aree degradate"]
+    confidence: medium
+    examples: ["v_aree_degradate (FVG PPR)"]
+
+  - canonical: VINCOLI_PAESAGGISTICI
+    any: ["v ambiti paesaggio", "v paesaggi articolazione", "v paesaggi delimitazione",
+          "v beni culturali", "v beni immobili interesse storico", "v uc immobili int storico",
+          "v ulteriori contesti immobili", "v aree rischio potenziale archeologico",
+          "v ulteriori contesti archeologici", "v zone interesse archeologico",
+          "v cavita naturali", "v circhi glaciali", "v morfotipi", "v montagne oltre 1600",
+          "v territori coperti da foreste", "v usi civici", "v aspetti scenico percettivi",
+          "v battigia", "v fascia rispetto battigia", "v tipologia di costa",
+          "v poli valore simbolico", "v itinerari letteratura", "v centuriazioni",
+          "v viabilita lenta cammini", "v viabilita lenta percorsi panoramici",
+          "v viabilita lenta vie acqua", "v viab for dir", "v viabilita storica"]
+    confidence: high
+    examples: ["v_ambiti_paesaggio_ppr_fvg", "v_beni_culturali", "v_montagne_oltre_1600_m",
+               "v_zone_interesse_archeologico", "v_territori_coperti_da_foreste_e_boschi"]
+
+  - canonical: AREE_PROTETTE
+    any: ["biotopi", "important bird area", "mab unesco", "aree reperimento",
+          "ris naturali statali", "protectedsite", "pratistabili", "aria bur", "aria prgc"]
+    confidence: high
+    examples: ["BIOTOPI", "IMPORTANT_BIRD_AREA", "MAB_UNESCO_FVG", "PRATISTABILI",
+               "RIS_NATURALI_STATALI"]
+
+  - canonical: DISSESTO_GEOLOGICO
+    any: ["classi sism", "nodi sism", "classificazione sismica"]
+    confidence: high
+    examples: ["CLASSI_SISM_DM1982", "CLASSI_SISM_OPCM3274", "NODI_SISM_DM2008"]

@@ -1,0 +1,1125 @@
+# ============================================================================
+# PROFILI REGIONALI DI PIANIFICAZIONE
+# Descrivono ciò che il processore deve aspettarsi nei diversi ordinamenti
+# regionali. Il profilo modifica la pipeline: livelli inesistenti vengono saltati,
+# gli strumenti obbligatori diventano controlli di copertura e i temi locali sono
+# ricondotti alle classi canoniche.
+# ============================================================================
+
+version: 1
+
+defaults:
+  planning_levels: [regione, provincia, comune]
+  processing_order: [regione, provincia, comune]
+  human_review_required: true
+
+profiles:
+  "02":
+    key: valle_d_aosta
+    names:
+      it: "Valle d'Aosta"
+      fr: "Vallée d'Aoste"
+    special_statute: true
+    languages: [it, fr]
+
+    territorial_model:
+      planning_levels: [regione, comune]
+      processing_order: [regione, comune]
+      expected_municipalities: 74
+      skipped_levels:
+        provincia:
+          reason: >
+            Non esiste un'amministrazione provinciale con un proprio livello
+            ordinario di pianificazione. L'eventuale geometria/codice provinciale
+            ISTAT resta utilizzabile solo come contenitore tecnico.
+          geometry_role: technical_container_only
+      intermunicipal_units:
+        name: "Unités des Communes valdôtaines"
+        count: 8
+        plus: "Comune di Aosta"
+        planning_level: false
+        note: >
+          Sono conservate come contesto amministrativo, ma non sostituiscono
+          automaticamente il livello provinciale nella pipeline urbanistica.
+
+    composition:
+      fill_down_order: [PTP, PRG]
+      municipal_override: true
+      rule: >
+        Il PTP costituisce il quadro sovraordinato; il PRG comunale aggiunge il
+        dettaglio locale senza cancellare provenienza, prescrizioni e vincoli PTP.
+
+    instruments:
+      - key: PTP
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale Paesistico"
+        alternate_name: "Plan Territorial Paysager"
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 13/1998 — approvazione del PTP"
+          - "L.R. 11/1998 — normativa urbanistica e di pianificazione territoriale"
+        coverage_scope: whole_region
+        conformity_role: sovraordinato
+
+      - key: PRG
+        level: comune
+        required: true
+        expected_count: 74
+        official_name: "Piano regolatore generale comunale urbanistico e paesaggistico"
+        aliases: [PRG, PRGC]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 11/1998, art. 11"
+          - "L.R. 17/2025 — modificazioni alla L.R. 11/1998"
+        coverage_scope: each_municipality
+        must_conform_to: PTP
+        track:
+          - availability
+          - adaptation_to_ptp
+          - approval_and_variant_dates
+          - prescriptive_cartography
+
+    not_expected:
+      - key: PTCP
+        level: provincia
+        reason: "Livello provinciale urbanistico non presente nel modello valdostano."
+
+    expected_datasets:
+      PTP:
+        - source_theme: "Assetto generale"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Siti, beni e aree di specifico interesse"
+          canonical_classes: [VINCOLI_PAESAGGISTICI, AREE_PROTETTE]
+        - source_theme: "Disciplina di uso e valorizzazione"
+          canonical_classes: [PRG_ZONING, AGRICOLTURA]
+        - source_theme: "Pericolosità geologica e idraulica"
+          canonical_classes: [DISSESTO_GEOLOGICO, RISCHIO_IDRAULICO]
+        - source_theme: "Vincoli paesaggistici"
+          canonical_classes: [VINCOLI_PAESAGGISTICI]
+      PRG:
+        - source_theme: "Classificazione degli edifici"
+          canonical_classes: [PRG_EDIFICI_STORICI]
+        - source_theme: "Zone, sottozone e comparti"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Servizi"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Viabilità"
+          canonical_classes: [VIABILITA]
+
+    recognition_hints:
+      priority_terms:
+        - PTP
+        - PRG
+        - PRGC
+        - "cartografia prescrittiva"
+        - "ambiti inedificabili"
+        - "pericolosità geologica"
+        - "pericolosità idraulica"
+        - valanghe
+        - ghiacciai
+      policy_priorities:
+        - tutela_del_territorio_alpino
+        - rischio_idrogeologico_e_valanghivo
+        - conservazione_dei_terreni_agricoli
+        - recupero_del_patrimonio_edilizio_storico
+
+    official_portals:
+      - key: planning_home
+        purpose: "Normativa e accesso a PTP, PRG e varianti"
+        url: "https://www.regione.vda.it/territorio/territorio/pianificazione_territoriale/default_i.asp"
+      - key: ptp
+        purpose: "Documenti e cartografie del PTP"
+        url: "https://www.regione.vda.it/territorio/territorio/pianificazione_territoriale/ptr/default_i.asp"
+      - key: prg_status
+        purpose: "Stato di adeguamento dei PRG e provvedimenti comunali"
+        url: "https://mappe.regione.vda.it/pub/geonavitg/geopiani.asp"
+      - key: sct_download
+        purpose: "Repertorio ufficiale per scaricare i dataset cartografici"
+        url: "https://sct-outil.regione.vda.it/SCTProfessional/repertcarto/allrepertori"
+
+    normative_updates:
+      - key: lr_17_2025
+        date: "2025-06-10"
+        status: approved
+        title: >
+          Disposizioni in materia di urbanistica e pianificazione territoriale.
+          Modificazioni alla L.R. 11/1998 e ad altre leggi regionali.
+        processing_effect:
+          - "versionare le regole applicate alle varianti urbanistiche"
+          - "non attribuire a un PRG uno stato procedurale senza fonte e data"
+          - "registrare separatamente gli esiti/procedimenti VAS quando disponibili"
+        note: >
+          La data ufficiale è 10 giugno 2025. Il riferimento a una pubblicazione
+          nel luglio 2026 non viene assunto dal modello.
+        source_url: "https://www.regione.vda.it/territorio/territorio/pianificazione_territoriale/Disciplina_normativa/default_i.aspx"
+
+  "03":
+    key: lombardia
+    names:
+      it: "Lombardia"
+    special_statute: false
+    languages: [it]
+
+    territorial_model:
+      planning_levels: [regione, provincia, comune]
+      processing_order: [regione, provincia, comune]
+      expected_provinces: 12
+      expected_municipalities: 1501
+      municipality_count_checked_at: "2026-07-29"
+      province_roles:
+        - {istat: "012", name: "Varese", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "013", name: "Como", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "014", name: "Sondrio", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "015", name: "Milano", authority_type: citta_metropolitana, expected_instrument: PTM}
+        - {istat: "016", name: "Bergamo", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "017", name: "Brescia", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "018", name: "Pavia", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "019", name: "Cremona", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "020", name: "Mantova", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "097", name: "Lecco", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "098", name: "Lodi", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "108", name: "Monza e della Brianza", authority_type: provincia, expected_instrument: PTCP}
+      registry_note: >
+        Il servizio regionale dei limiti amministrativi espone 1.501 comuni
+        correnti. Il registry locale va riallineato alle fusioni 2024 prima di
+        dichiarare completa la copertura dei filtri comunali.
+
+    composition:
+      fill_down_order: [PTR, PPR, PTCP, PTM, PGT, COMPONENTE_GEOLOGICA]
+      municipal_override: true
+      mandatory_overlays: [COMPONENTE_GEOLOGICA]
+      rule: >
+        La previsione comunale va letta insieme alle disposizioni prevalenti del
+        PTR/PPR e del PTCP o PTM. Il Documento di Piano esprime la strategia ma
+        non produce effetti diretti sul regime giuridico dei suoli; per diritti,
+        destinazioni e limiti operativi prevale il Piano delle Regole, integrato
+        dal Piano dei Servizi e dalla componente geologica.
+
+    instruments:
+      - key: PTR
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale Regionale"
+        aliases: [PTR]
+        plan_type: regolatore
+        status: effective
+        approved_at: "2025-11-18"
+        effective_at: "2026-01-28"
+        legal_basis:
+          - "L.R. 12/2005"
+          - "D.C.R. 1157/2025"
+        coverage_scope: whole_region
+        conformity_role: sovraordinato
+        note: >
+          Il PTR ha natura ed effetti di piano territoriale paesaggistico, ma
+          per la disciplina paesaggistica vigente rinvia al PPR approvato nel
+          2010, fino alla conclusione della nuova co-pianificazione.
+
+      - key: PPR
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Paesaggistico Regionale"
+        aliases: [PPR, Piano Territoriale Paesistico]
+        plan_type: regolatore
+        status: effective
+        approved_at: "2010-01-19"
+        legal_basis:
+          - "L.R. 12/2005"
+          - "D.Lgs. 42/2004"
+          - "D.C.R. 951/2010"
+        coverage_scope: whole_region
+        conformity_role: sovraordinato
+
+      - key: PTCP
+        level: provincia
+        required: true
+        expected_count: 11
+        official_name: "Piano Territoriale di Coordinamento Provinciale"
+        plan_type: regolatore
+        coverage_scope: provinces_except_milan
+
+      - key: PTM
+        level: provincia
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale Metropolitano"
+        plan_type: regolatore
+        coverage_scope: ["Città metropolitana di Milano"]
+
+      - key: PGT
+        level: comune
+        required: true
+        expected_count: 1501
+        official_name: "Piano di Governo del Territorio"
+        aliases: [PGT]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 12/2005, artt. 6-10"
+        coverage_scope: each_municipality
+        components: [DOCUMENTO_DI_PIANO, PIANO_DEI_SERVIZI, PIANO_DELLE_REGOLE]
+        track:
+          - availability
+          - approval_and_variant_dates
+          - burl_effectiveness
+          - plan_status
+          - digital_cartography
+          - pgtweb_document_url
+          - ptr_ptcp_ptm_conformity
+
+      - key: DOCUMENTO_DI_PIANO
+        level: comune
+        required: true
+        parent: PGT
+        official_name: "Documento di Piano"
+        aliases: [DdP, DP]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 12/2005, art. 8"
+        effect_on_land_rights: none_direct
+        ordinary_validity_years: 5
+        processing_rule: >
+          Registrare scadenza, proroghe e disciplina transitoria. Nei comuni fino
+          a 2.000 abitanti le previsioni sono a tempo indeterminato, ma il
+          Documento di Piano va verificato e aggiornato almeno ogni cinque anni.
+
+      - key: PIANO_DEI_SERVIZI
+        level: comune
+        required: true
+        parent: PGT
+        official_name: "Piano dei Servizi"
+        aliases: [PdS, PS]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 12/2005, art. 9"
+        themes: [servizi_esistenti, servizi_in_progetto, attrezzature_pubbliche]
+
+      - key: PIANO_DELLE_REGOLE
+        level: comune
+        required: true
+        parent: PGT
+        official_name: "Piano delle Regole"
+        aliases: [PdR, PR]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 12/2005, art. 10"
+        conformity_role: conformativo
+        themes:
+          - tessuto_urbano_consolidato
+          - aree_agricole
+          - aree_di_valore_paesaggistico_ambientale
+          - nuclei_di_antica_formazione
+          - regole_e_parametri_edificatori
+
+      - key: COMPONENTE_GEOLOGICA
+        level: comune
+        required: true
+        expected_count: 1501
+        official_name: "Componente geologica, idrogeologica e sismica del PGT"
+        aliases: [Carta di fattibilità geologica, Fattibilità geologica]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 12/2005, art. 57"
+        must_overlay: PGT
+        classes:
+          1: "Fattibilità senza particolari limitazioni"
+          2: "Fattibilità con modeste limitazioni"
+          3: "Fattibilità con consistenti limitazioni"
+          4: "Fattibilità con gravi limitazioni"
+
+    expected_datasets:
+      PPR:
+        - source_theme: "Ambiti ed elementi disciplinati dagli artt. 17-27"
+          canonical_classes: [VINCOLI_PAESAGGISTICI]
+        - source_theme: "Geositi, siti UNESCO e visuali paesaggistiche"
+          canonical_classes: [VINCOLI_PAESAGGISTICI]
+      PGT:
+        - source_theme: "Stato del PGT e collegamento alla scheda PGTWEB"
+          canonical_classes: [PIANI_MATURITA]
+        - source_theme: "Ambiti del tessuto urbano consolidato"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Ambiti di trasformazione e rigenerazione"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Aree agricole, servizi e impianti"
+          canonical_classes: [PRG_ZONING, AGRICOLTURA]
+        - source_theme: "Nuclei di antica formazione"
+          canonical_classes: [PRG_EDIFICI_STORICI]
+        - source_theme: "Fasce di rispetto e limitazioni"
+          canonical_classes: [VINCOLI_COMUNALI]
+        - source_theme: "Rete ecologica comunale"
+          canonical_classes: [RETE_ECOLOGICA]
+      COMPONENTE_GEOLOGICA:
+        - source_theme: "Carta della fattibilità geologica"
+          canonical_classes: [DISSESTO_GEOLOGICO]
+        - source_theme: "Pericolosità sismica locale"
+          canonical_classes: [DISSESTO_GEOLOGICO]
+
+    recognition_hints:
+      priority_terms:
+        - PGT
+        - "Documento di Piano"
+        - "Piano dei Servizi"
+        - "Piano delle Regole"
+        - "Tavola delle Previsioni di Piano"
+        - "ambiti di trasformazione"
+        - "ambiti di rigenerazione"
+        - "tessuto urbano consolidato"
+        - "nuclei di antica formazione"
+        - "carta del consumo di suolo"
+        - "fattibilità geologica"
+        - "pericolosità sismica locale"
+      policy_priorities:
+        - riduzione_del_consumo_di_suolo
+        - rigenerazione_urbana_e_territoriale
+        - recupero_del_patrimonio_dismesso
+        - compatibilita_geologica_idrogeologica_e_sismica
+        - tutela_delle_aree_agricole
+
+    official_portals:
+      - key: geoportal
+        purpose: "Catalogo, download e servizi OGC/ArcGIS dei dati territoriali regionali"
+        url: "https://www.geoportale.regione.lombardia.it/"
+      - key: pgtweb
+        purpose: "Archivio documentale e livelli informativi dei PGT comunali"
+        url: "https://www.multiplan.servizirl.it/pgtwebn/"
+      - key: regional_pgt_page
+        purpose: "Disciplina e strumenti regionali per i PGT"
+        url: "https://www.regione.lombardia.it/ambiente-e-territorio/pianificazione-territoriale/pianificazione-comunale-e-provinciale/piani-di-governo-del-territorio-pgt"
+      - key: ptr
+        purpose: "Piano Territoriale Regionale vigente dal 28 gennaio 2026"
+        url: "https://www.regione.lombardia.it/ambiente-e-territorio/pianificazione-territoriale/pianificazione-regionale/piano-territoriale-regionale"
+      - key: ppr
+        purpose: "Piano Paesaggistico Regionale 2010 vigente"
+        url: "https://www.regione.lombardia.it/ambiente-e-territorio/paesaggio/piano-paesaggistico-regionale-ppr"
+      - key: planning_law
+        purpose: "Testo coordinato della L.R. 12/2005"
+        url: "https://normelombardia.consiglio.regione.lombardia.it/NormeLombardia/Accessibile/main.aspx?iddoc=lr002005031100012&view=showdoc"
+
+    normative_updates:
+      - key: lr_12_2005
+        status: consolidated
+        title: "Legge per il governo del territorio"
+        processing_effect:
+          - "distinguere i tre atti del PGT"
+          - "non attribuire effetti conformativi diretti al Documento di Piano"
+          - "controllare la validità quinquennale e le eventuali proroghe del Documento di Piano"
+          - "sovrapporre sempre la componente geologica al Piano delle Regole"
+          - "conservare data BURL perché determina l'efficacia del PGT"
+        source_url: "https://normelombardia.consiglio.regione.lombardia.it/NormeLombardia/Accessibile/main.aspx?iddoc=lr002005031100012&view=showdoc"
+
+  "05":
+    key: veneto
+    names:
+      it: "Veneto"
+    special_statute: false
+    languages: [it]
+
+    territorial_model:
+      planning_levels: [regione, provincia, comune]
+      processing_order: [regione, provincia, comune]
+      expected_provinces: 7
+      expected_municipalities: 559
+      municipality_count_checked_at: "2026-07-29"
+      province_roles:
+        - {istat: "023", name: "Verona", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "024", name: "Vicenza", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "025", name: "Belluno", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "026", name: "Treviso", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "027", name: "Venezia", authority_type: citta_metropolitana, expected_instrument: PTCP}
+        - {istat: "028", name: "Padova", authority_type: provincia, expected_instrument: PTCP}
+        - {istat: "029", name: "Rovigo", authority_type: provincia, expected_instrument: PTCP}
+      registry_note: >
+        Il WFS regionale dei confini espone 559 comuni correnti. Il registro
+        nazionale locale ne conserva ancora 563 perché precede le fusioni
+        Gambugliano-Sovizzo, Castegnero-Nanto, Alano di Piave-Quero Vas e
+        Carceri-Vighizzolo d'Este. Il download Veneto genera un overlay
+        corrente senza riscrivere il registro storico nazionale.
+
+    composition:
+      fill_down_order: [PTRC, VINCOLI_PAESAGGISTICI, PTCP, PAT, PATI, PI, AUC]
+      municipal_override: true
+      mandatory_overlays: [CARTA_FRAGILITA, VINCOLI_PAESAGGISTICI, CONSUMO_SUOLO]
+      rule: >
+        Il PAT o PATI definisce struttura, invarianti, fragilità e limiti
+        strategici; non basta per attribuire il regime operativo del lotto.
+        La decisione comunale va letta nel PI vigente, insieme a NTA, PTCP,
+        PTRC, vincoli paesaggistici e pericolosità. L'AUC della L.R. 14/2017
+        descrive il perimetro urbanizzato e il contenimento del consumo di
+        suolo, ma non equivale da sola a un diritto edificatorio.
+
+    instruments:
+      - key: PTRC
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale Regionale di Coordinamento"
+        aliases: [PTRC]
+        plan_type: regolatore
+        status: effective
+        approved_at: "2020-06-30"
+        legal_basis:
+          - "L.R. 11/2004"
+          - "D.C.R. 62/2020"
+        coverage_scope: whole_region
+        conformity_role: sovraordinato
+        note: >
+          Il PTRC 2020 vigente non ha valenza di piano paesaggistico ai sensi
+          del D.Lgs. 42/2004. I suoi temi paesaggistici sono conoscitivi e di
+          coordinamento; i vincoli efficaci vanno acquisiti dalle fonti
+          paesaggistiche vigenti e dai relativi provvedimenti.
+
+      - key: PPR
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Paesaggistico Regionale"
+        aliases: [PPR, "PTRC a valenza paesaggistica"]
+        plan_type: regolatore
+        status: in_preparation
+        legal_basis:
+          - "D.Lgs. 42/2004"
+          - "L.R. 11/2004, artt. 45 bis e seguenti"
+        coverage_scope: whole_region
+        processing_rule: >
+          Conservare lo stato procedurale e non trattare studi, ricognizioni o
+          proposte del PPR come piano paesaggistico approvato.
+
+      - key: PTCP
+        level: provincia
+        required: true
+        expected_count: 7
+        official_name: "Piano Territoriale di Coordinamento Provinciale"
+        aliases: [PTCP]
+        plan_type: regolatore
+        coverage_scope: all_provinces_and_metropolitan_venice
+        note: >
+          La pagina regionale aggiornata al novembre 2025 censisce sette PTCP
+          approvati, incluso quello di Venezia. Per Venezia il futuro
+          strumento metropolitano è denominato PTGM, non PTM.
+
+      - key: PAT
+        level: comune
+        required: true
+        expected_count: 559
+        official_name: "Piano di Assetto del Territorio"
+        aliases: [PAT]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 11/2004, artt. 12-16"
+        coverage_scope: each_municipality_or_pati
+        conformity_role: strategico_strutturale
+        track:
+          - availability
+          - approval_and_variant_dates
+          - vincoli
+          - invarianti
+          - fragilita
+          - trasformabilita
+
+      - key: PATI
+        level: comune
+        required: false
+        expected_count: dynamic
+        official_name: "Piano di Assetto del Territorio Intercomunale"
+        aliases: [PATI]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 11/2004, art. 16"
+        coverage_scope: participating_municipalities
+        conformity_role: strategico_strutturale_intercomunale
+
+      - key: PI
+        level: comune
+        required: true
+        expected_count: 559
+        official_name: "Piano degli Interventi"
+        aliases: [PI]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 11/2004, art. 17"
+          - "L.R. 14/2017"
+        coverage_scope: each_municipality
+        must_conform_to: PAT
+        conformity_role: operativo_conformativo
+        track:
+          - availability
+          - approval_and_variant_dates
+          - zonizzazione
+          - indici_and_parameters
+          - nta
+          - five_year_expiry_of_transformative_predictions
+
+      - key: AUC
+        level: comune
+        required: true
+        expected_count: 559
+        official_name: "Ambiti di urbanizzazione consolidata"
+        aliases: [AUC]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 14/2017"
+        coverage_scope: each_municipality
+        conformity_role: consumo_suolo
+
+    expected_datasets:
+      PTRC:
+        - source_theme: "Uso del suolo, terra e acqua"
+          canonical_classes: [AGRICOLTURA, ACQUE]
+        - source_theme: "Biodiversità e rete ecologica"
+          canonical_classes: [AREE_PROTETTE, RETE_ECOLOGICA]
+        - source_theme: "Idrogeologia e rischio sismico"
+          canonical_classes: [RISCHIO_IDRAULICO, DISSESTO_GEOLOGICO, VINCOLO_IDROGEOLOGICO]
+        - source_theme: "Mobilità e infrastrutture"
+          canonical_classes: [VIABILITA, FERROVIA]
+      PAT:
+        - source_theme: "Carta dei vincoli e della pianificazione territoriale"
+          canonical_classes: [VINCOLI_PAESAGGISTICI, VINCOLI_COMUNALI]
+        - source_theme: "Carta delle invarianti"
+          canonical_classes: [VINCOLI_COMUNALI, RETE_ECOLOGICA]
+        - source_theme: "Carta delle fragilità"
+          canonical_classes: [RISCHIO_IDRAULICO, DISSESTO_GEOLOGICO]
+        - source_theme: "Carta della trasformabilità"
+          canonical_classes: [PRG_ZONING, TRASFORMAZIONI]
+      PI:
+        - source_theme: "Zonizzazione del Piano Regolatore Comunale"
+          canonical_classes: [PRG_ZONING]
+      AUC:
+        - source_theme: "Perimetri AUC e quantità massima di suolo consumabile"
+          canonical_classes: [PRG_ZONING, PIANI_MATURITA]
+
+    recognition_hints:
+      priority_terms:
+        - PTRC
+        - PTCP
+        - PAT
+        - PATI
+        - PI
+        - AUC
+        - "zonizzazione P.R.C."
+        - "carta delle fragilità"
+        - "carta della trasformabilità"
+        - "ambiti di urbanizzazione consolidata"
+        - "consumo di suolo"
+      policy_priorities:
+        - contenimento_del_consumo_di_suolo
+        - rigenerazione_urbana
+        - rischio_idraulico_geologico_e_sismico
+        - tutela_del_paesaggio_e_dei_beni
+        - lettura_congiunta_pat_pi
+
+    official_portals:
+      - key: geoportal
+        purpose: "Catalogo, download e servizi OGC regionali"
+        url: "https://idt2.regione.veneto.it/"
+      - key: municipal_planning_webgis
+        purpose: "Zonizzazione PRC, AUC e stato della pianificazione comunale"
+        url: "https://idt2.regione.veneto.it/idt/webgis/viewer?webgisId=213"
+      - key: ptrc_webgis
+        purpose: "Tavole e layer del PTRC 2020 vigente"
+        url: "https://idt2.regione.veneto.it/idt/webgis/viewer?webgisId=191"
+      - key: municipal_planning
+        purpose: "Disciplina e stato di PAT/PATI e PI"
+        url: "https://www.regione.veneto.it/web/ambiente-e-territorio/pianificazione-comunale"
+      - key: ptcp
+        purpose: "Elenco ufficiale dei sette PTCP approvati"
+        url: "https://www.regione.veneto.it/web/ptrc/ptcp"
+      - key: soil_consumption
+        purpose: "Attuazione e monitoraggio della L.R. 14/2017"
+        url: "https://www.regione.veneto.it/web/ambiente-e-territorio/contenimento-consumo-di-suolo"
+
+    normative_updates:
+      - key: lr_11_2004
+        status: consolidated
+        title: "Norme per il governo del territorio e in materia di paesaggio"
+        processing_effect:
+          - "distinguere sempre componente strutturale PAT/PATI e componente operativa PI"
+          - "non attribuire diritti edificatori usando soltanto il PAT"
+          - "registrare NTA, data di efficacia e variante del PI"
+          - "conservare separatamente fragilità, invarianti, vincoli e trasformabilità"
+        source_url: "https://www.regione.veneto.it/web/ambiente-e-territorio/pianificazione-comunale"
+      - key: lr_14_2017
+        status: effective
+        title: "Disposizioni per il contenimento del consumo di suolo"
+        processing_effect:
+          - "acquisire AUC e quantità massima di suolo consumabile"
+          - "distinguere consumo programmato e consumo effettivo"
+          - "non convertire automaticamente il perimetro AUC in edificabilità"
+        source_url: "https://www.regione.veneto.it/web/ambiente-e-territorio/contenimento-consumo-di-suolo"
+
+  "08":
+    key: emilia_romagna
+    names:
+      it: "Emilia-Romagna"
+    special_statute: false
+    languages: [it]
+
+    territorial_model:
+      planning_levels: [regione, provincia, comune]
+      processing_order: [regione, provincia, comune]
+      expected_provinces: 9
+      expected_municipalities: 330
+      municipality_count_checked_at: "2026-07-30"
+      province_roles:
+        - {istat: "033", name: "Piacenza", authority_type: provincia, expected_instrument: PTAV}
+        - {istat: "034", name: "Parma", authority_type: provincia, expected_instrument: PTAV}
+        - {istat: "035", name: "Reggio nell'Emilia", authority_type: provincia, expected_instrument: PTAV}
+        - {istat: "036", name: "Modena", authority_type: provincia, expected_instrument: PTAV}
+        - {istat: "037", name: "Bologna", authority_type: citta_metropolitana, expected_instrument: PTM}
+        - {istat: "038", name: "Ferrara", authority_type: provincia, expected_instrument: PTAV}
+        - {istat: "039", name: "Ravenna", authority_type: provincia, expected_instrument: PTAV}
+        - {istat: "040", name: "Forlì-Cesena", authority_type: provincia, expected_instrument: PTAV}
+        - {istat: "099", name: "Rimini", authority_type: provincia, expected_instrument: PTAV}
+      transition_note: >
+        PTAV e PTM sono i nuovi strumenti strategici d'area vasta, ma non
+        cancellano tutte le componenti dei PTCP. Ai sensi dell'art. 76 della
+        L.R. 24/2017 continuano a essere efficaci le disposizioni e cartografie
+        dei PTCP che recepiscono o integrano il PTPR, fino al loro superamento
+        da parte della nuova pianificazione paesaggistica regionale.
+
+    composition:
+      fill_down_order: [PTR, PTPR, PTCP_PAESAGGISTICO, PTAV, PTM, PUG, PSC, RUE, POC, PRG]
+      municipal_override: true
+      mandatory_overlays: [TAVOLA_VINCOLI, RISCHIO_IDRAULICO, DISSESTO_GEOLOGICO]
+      rule: >
+        La disciplina del lotto deriva dal piano comunale vigente e dalle sue
+        norme, letto insieme alla Tavola dei vincoli e alle prescrizioni
+        sovraordinate. Nel PUG la strategia e gli areali per accordi operativi
+        non attribuiscono da soli un diritto edificatorio puntuale. Nei Comuni
+        non ancora coperti dal PUG restano da versionare gli strumenti
+        previgenti effettivamente vigenti (PRG oppure PSC/POC/RUE).
+
+    instruments:
+      - key: PTR
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale Regionale"
+        aliases: [PTR]
+        plan_type: regolatore
+        status: effective_legacy_new_plan_in_preparation
+        approved_at: "2010-02-03"
+        legal_basis:
+          - "L.R. 20/2000, art. 23"
+          - "D.A.L. 276/2010"
+          - "L.R. 24/2017, art. 40"
+        coverage_scope: whole_region
+        note: >
+          Il PTR 2010 resta vigente nelle more del nuovo PTR unitario previsto
+          dall'art. 40, che integrerà componente strategica, strutturale,
+          paesaggistica e componente territoriale del PRIT.
+
+      - key: PTPR
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale Paesistico Regionale"
+        aliases: [PTPR]
+        plan_type: regolatore
+        status: effective_in_adaptation
+        approved_at: "1993"
+        legal_basis:
+          - "D.C.R. 1338/1993"
+          - "D.Lgs. 42/2004"
+          - "L.R. 24/2017, artt. 40, 64 e 76"
+        coverage_scope: whole_region
+        conformity_role: sovraordinato
+        note: >
+          Il PTPR 1993 è vigente ed è in adeguamento al Codice dei beni
+          culturali e del paesaggio. La cartografia regionale originaria è
+          storica; le specificazioni paesaggistiche efficaci sono spesso nelle
+          componenti dei PTCP che continuano a produrre effetti.
+
+      - key: PTAV
+        level: provincia
+        required: true
+        expected_count: 8
+        official_name: "Piano Territoriale di Area Vasta"
+        aliases: [PTAV]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 24/2017, art. 42"
+        coverage_scope: all_provinces_except_bologna
+        conformity_role: strategico_area_vasta
+        track:
+          - approval_and_effective_dates
+          - continuing_ptcp_landscape_components
+          - logistics_and_productive_hubs
+          - ecological_network
+          - allocation_of_soil_consumption
+
+      - key: PTM
+        level: provincia
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale Metropolitano di Bologna"
+        aliases: [PTM]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 24/2017, art. 41"
+        coverage_scope: bologna_metropolitan_city
+        conformity_role: strategico_metropolitano
+        note: >
+          Comprende la disciplina metropolitana, inclusi perequazione,
+          insediamenti di rilievo sovracomunale e logistica. Le parti del
+          precedente PTCP individuate dall'Allegato B del PTM continuano a
+          costituire pianificazione paesaggistica regionale.
+
+      - key: PUG
+        level: comune
+        required: true
+        expected_count: 330
+        official_name: "Piano Urbanistico Generale"
+        aliases: [PUG]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 24/2017, artt. 31-36"
+        coverage_scope: each_municipality_or_associated_plan
+        conformity_role: general_municipal_plan
+        track:
+          - administrative_status
+          - approval_and_effective_dates
+          - territory_classification
+          - urbanized_territory_at_2018_01_01
+          - historical_settlement_system
+          - ordinary_regulation
+          - operational_agreements
+          - constraints_table
+          - local_sustainability_assessment
+          - technical_rules
+
+      - key: LEGACY_MUNICIPAL_PLANS
+        level: comune
+        required: true
+        expected_count: dynamic
+        official_name: "Strumenti urbanistici comunali previgenti"
+        aliases: [PRG, PSC, POC, RUE]
+        plan_type: regolatore
+        status: transitional_where_pug_not_effective
+        legal_basis:
+          - "L.R. 47/1978"
+          - "L.R. 20/2000"
+          - "L.R. 24/2017, artt. 3, 4 e 79"
+        coverage_scope: municipalities_without_effective_pug
+        processing_rule: >
+          Non assumere automaticamente la triade PSC/POC/RUE: alcuni Comuni
+          conservano strumenti PRG. Registrare per Comune l'atto vigente, le
+          varianti, la disciplina operativa e la data di efficacia.
+
+    soil_consumption:
+      objective: saldo_zero_by_2050
+      maximum_quota: "3% del territorio urbanizzato individuato al 1 gennaio 2018"
+      legal_basis: "L.R. 24/2017, artt. 5 e 6"
+      processing_rule: >
+        Il 3% è la quota complessiva massima disciplinata dalla legge, soggetta
+        a esclusioni, monitoraggio e allocazione della pianificazione di area
+        vasta. Non convertirla in un diritto automatico di ciascun Comune o
+        lotto e calcolare il saldo considerando anche le desigillazioni.
+
+    expected_datasets:
+      PUG:
+        - source_theme: "Territorio urbanizzato al 1 gennaio 2018 e classificazione del territorio"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Sistema insediativo storico"
+          canonical_classes: [PRG_EDIFICI_STORICI]
+        - source_theme: "Disciplina regolativa ordinaria e accordi operativi"
+          canonical_classes: [PRG_ZONING, TRASFORMAZIONI]
+        - source_theme: "Dotazioni territoriali"
+          canonical_classes: [SERVIZI_POI]
+        - source_theme: "Tavola dei vincoli"
+          canonical_classes: [VINCOLI_PAESAGGISTICI, VINCOLI_COMUNALI, RISCHIO_IDRAULICO, DISSESTO_GEOLOGICO]
+      PSC:
+        - source_theme: "Territori e assetto per ambiti"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Dotazioni e mobilità"
+          canonical_classes: [SERVIZI_POI, VIABILITA]
+        - source_theme: "Comuni presenti nella banca dati"
+          canonical_classes: [PIANI_MATURITA]
+      PTPR_PTAV_PTM:
+        - source_theme: "Tutele paesaggistiche e storico-culturali"
+          canonical_classes: [VINCOLI_PAESAGGISTICI, AREE_PROTETTE]
+        - source_theme: "Rete ecologica, corsi d'acqua e territorio rurale"
+          canonical_classes: [RETE_ECOLOGICA, ACQUE, AGRICOLTURA]
+
+    recognition_hints:
+      priority_terms:
+        - PUG
+        - PSC
+        - POC
+        - RUE
+        - PRG
+        - PTAV
+        - PTM
+        - PTPR
+        - "territorio urbanizzato"
+        - "classificazione del territorio"
+        - "disciplina regolativa ordinaria"
+        - "accordi operativi"
+        - "tavola dei vincoli"
+        - "sistema insediativo storico"
+      policy_priorities:
+        - consumo_di_suolo_a_saldo_zero_2050
+        - rigenerazione_urbana
+        - doppia_vigenza_ptav_ptm_e_componenti_paesaggistiche_ptcp
+        - rischio_idraulico_e_dissesto
+        - tutela_del_territorio_rurale
+
+    official_portals:
+      - key: planning_home
+        purpose: "Quadro ufficiale della pianificazione territoriale regionale"
+        url: "https://territorio.regione.emilia-romagna.it/programmazione-territoriale/pianificazione-territoriale"
+      - key: planning_law
+        purpose: "L.R. 24/2017 e atti di coordinamento"
+        url: "https://territorio.regione.emilia-romagna.it/codice-territorio/disciplina-regionale/pianif-territoriale/legge-regionale-21-dicembre-2017-n-24"
+      - key: geoportal
+        purpose: "Catalogo e download dei dati geografici regionali"
+        url: "https://geoportale.regione.emilia-romagna.it/"
+      - key: moka_pug
+        purpose: "Banca dati vettoriale dei PUG e relativo monitoraggio"
+        url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PUGH5/"
+      - key: moka_psc
+        purpose: "Mosaico informativo dei PSC secondo la L.R. 20/2000"
+        url: "https://servizimoka.regione.emilia-romagna.it/mokaApp/apps/PSC/index.html"
+      - key: municipal_status
+        purpose: "Stato amministrativo degli strumenti urbanistici comunali"
+        url: "https://territorio.regione.emilia-romagna.it/urbanistica/monitoraggio-lr-24-2017/banca-dati-amministrativa-puc"
+      - key: ptcp_landscape
+        purpose: "Cartografie PTCP che continuano a costituire riferimento paesaggistico"
+        url: "https://territorio.regione.emilia-romagna.it/paesaggio/ptpr/il-piano-territoriale-paesistico-regionale/i-ptcp"
+
+    normative_updates:
+      - key: lr_24_2017
+        status: consolidated
+        title: "Disciplina regionale sulla tutela e l'uso del territorio"
+        processing_effect:
+          - "versionare per Comune il passaggio dagli strumenti previgenti al PUG"
+          - "non equiparare strategia o accordo operativo a edificabilità immediata"
+          - "calcolare il consumo di suolo come saldo comprensivo delle desigillazioni"
+          - "applicare quota, esclusioni e allocazione del 3% senza creare diritti automatici"
+          - "conservare le componenti paesaggistiche efficaci dei PTCP"
+        source_url: "https://territorio.regione.emilia-romagna.it/codice-territorio/disciplina-regionale/pianif-territoriale/legge-regionale-21-dicembre-2017-n-24"
+
+  "07":
+    key: liguria
+    names:
+      it: "Liguria"
+    special_statute: false
+    languages: [it]
+
+    territorial_model:
+      planning_levels: [regione, provincia, comune]
+      processing_order: [regione, provincia, comune]
+      expected_provinces: 4
+      expected_municipalities: 234
+      province_roles:
+        - istat: "008"
+          name: "Imperia"
+          authority_type: provincia
+          expected_instrument: PTC
+        - istat: "009"
+          name: "Savona"
+          authority_type: provincia
+          expected_instrument: PTC
+        - istat: "010"
+          name: "Genova"
+          authority_type: citta_metropolitana
+          expected_instrument: PTM
+        - istat: "011"
+          name: "La Spezia"
+          authority_type: provincia
+          expected_instrument: PTC
+
+    composition:
+      fill_down_order: [PTCP_PAESISTICO, PPR_PROGETTO, PTR, PTC_PTM, PIANI_BACINO, PUC]
+      municipal_override: true
+      mandatory_overlays: [PIANI_BACINO]
+      rule: >
+        Il PUC va letto insieme alla pianificazione regionale, provinciale o
+        metropolitana e alla pianificazione di bacino. Le fasce di inondabilità,
+        la suscettività al dissesto e le altre prescrizioni sovraordinate non
+        vengono cancellate da una previsione edificatoria comunale.
+
+    instruments:
+      - key: PTCP_PAESISTICO
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale di Coordinamento Paesistico"
+        aliases: [PTCP, PTCP paesistico]
+        plan_type: regolatore
+        status: transitional_effect
+        legal_basis:
+          - "D.C.R. 6/1990"
+          - "L.R. 36/1997, disciplina transitoria"
+        coverage_scope: whole_region
+        note: >
+          Fino all'approvazione del nuovo Piano paesaggistico continuano ad
+          applicarsi gli effetti transitori del PTCP previsti dalla L.R. 36/1997.
+
+      - key: PPR_PROGETTO
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Paesaggistico Regionale"
+        aliases: [PPR]
+        plan_type: regolatore
+        status: in_preparation
+        legal_basis:
+          - "D.Lgs. 42/2004"
+          - "L.R. 36/1997, art. 3 e art. 14 bis"
+        coverage_scope: whole_region
+        processing_rule: "Conservare lo stato procedurale; non trattare il progetto come piano approvato."
+
+      - key: PTR
+        level: regione
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale Regionale"
+        plan_type: regolatore
+        status: preliminary_document
+        legal_basis:
+          - "L.R. 36/1997"
+          - "D.G.R. 110/2020 — Documento preliminare"
+        coverage_scope: whole_region
+        themes: [entroterra, citta, costa]
+        processing_rule: "Conservare lo stato procedurale; non attribuire efficacia di piano approvato."
+
+      - key: PTC
+        level: provincia
+        required: true
+        expected_count: 3
+        official_name: "Piano Territoriale di Coordinamento provinciale"
+        aliases: [PTC, PTCP provinciale]
+        plan_type: regolatore
+        coverage_scope: [Imperia, Savona, "La Spezia"]
+
+      - key: PTM
+        level: provincia
+        required: true
+        expected_count: 1
+        official_name: "Piano Territoriale Metropolitano"
+        plan_type: regolatore
+        coverage_scope: ["Città metropolitana di Genova"]
+
+      - key: PIANI_BACINO
+        level: regione
+        required: true
+        expected_count: dynamic
+        official_name: "Pianificazione di bacino e distrettuale"
+        aliases: [PAI, PGRA, piano di bacino]
+        plan_type: regolatore
+        coverage_scope: sovracomunale
+        must_overlay: PUC
+        track:
+          - fasce_inondabilita
+          - pericolosita_idraulica
+          - suscettivita_frana
+          - rischio_idrogeologico
+
+      - key: PUC
+        level: comune
+        required: true
+        expected_count: 234
+        official_name: "Piano Urbanistico Comunale"
+        aliases: [PUC, PUC semplificato, PRG legacy]
+        plan_type: regolatore
+        legal_basis:
+          - "L.R. 36/1997"
+        coverage_scope: each_municipality
+        components:
+          - ambiti_conservazione
+          - ambiti_riqualificazione
+          - ambiti_completamento
+          - distretti_trasformazione
+          - ambiti_produzione_agricola_e_presidio_ambientale
+          - infrastrutture_e_servizi
+        implementation_instrument: PUO
+        track:
+          - availability
+          - approval_and_variant_dates
+          - plan_status
+          - prescriptive_cartography
+          - basin_plan_conformity
+
+    expected_datasets:
+      PTCP_PAESISTICO:
+        - source_theme: "Assetto insediativo"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Assetto geomorfologico"
+          canonical_classes: [DISSESTO_GEOLOGICO]
+        - source_theme: "Assetto vegetazionale"
+          canonical_classes: [AREE_PROTETTE, AGRICOLTURA]
+      PPR_PROGETTO:
+        - source_theme: "Ambiti e unità di paesaggio"
+          canonical_classes: [VINCOLI_PAESAGGISTICI]
+        - source_theme: "Vincoli per decreto e ope legis"
+          canonical_classes: [VINCOLI_PAESAGGISTICI]
+        - source_theme: "Componenti di paesaggio"
+          canonical_classes: [VINCOLI_PAESAGGISTICI, PRG_EDIFICI_STORICI]
+      PIANI_BACINO:
+        - source_theme: "Fasce di inondabilità"
+          canonical_classes: [RISCHIO_IDRAULICO]
+        - source_theme: "Suscettività al dissesto"
+          canonical_classes: [DISSESTO_GEOLOGICO]
+      PUC:
+        - source_theme: "Ambiti di conservazione"
+          canonical_classes: [PRG_ZONING, PRG_EDIFICI_STORICI]
+        - source_theme: "Ambiti di riqualificazione e completamento"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Distretti di trasformazione"
+          canonical_classes: [PRG_ZONING]
+        - source_theme: "Infrastrutture e servizi"
+          canonical_classes: [VIABILITA, PRG_ZONING]
+
+    recognition_hints:
+      priority_terms:
+        - PUC
+        - "PUC semplificato"
+        - "ambito di conservazione"
+        - "ambito di riqualificazione"
+        - "ambito di completamento"
+        - "distretto di trasformazione"
+        - PUO
+        - PTCP
+        - PPR
+        - PTR
+        - PTC
+        - PTM
+        - "fasce di inondabilità"
+        - "suscettività al dissesto"
+        - "piano di bacino"
+      policy_priorities:
+        - contenimento_del_consumo_di_suolo
+        - rigenerazione_del_costruito
+        - sicurezza_idraulica_e_idrogeologica
+        - tutela_della_fascia_costiera
+        - presidio_agricolo_dell_entroterra
+
+    official_portals:
+      - key: geoportal_thematic
+        purpose: "Catalogo e servizi delle Carte tematiche regionali"
+        url: "https://srvcarto.regione.liguria.it/geoviewer2/pages/apps/geoportale/index.html"
+      - key: regional_plans
+        purpose: "Piani territoriali regionali vigenti e in formazione"
+        url: "https://www.regione.liguria.it/homepage-urbanistica-e-territorio/cosa-cerchi/piani-territoriali.html"
+      - key: ppr
+        purpose: "Materiali e visualizzatore del Piano paesaggistico regionale"
+        url: "https://www.regione.liguria.it/homepage-urbanistica-e-territorio/cosa-cerchi/piani-territoriali/verso-il-nuovo-piano-paesaggistico-regionale/materiali-redazione-piano-paesaggistico.html"
+      - key: ptr
+        purpose: "Documento preliminare del Piano territoriale regionale"
+        url: "https://www.regione.liguria.it/homepage-urbanistica-e-territorio/cosa-cerchi/piani-territoriali/piano-territoriale-regionale.html"
+      - key: basin_authority
+        purpose: "Pianificazione distrettuale del rischio idraulico e geomorfologico"
+        url: "https://www.appenninosettentrionale.it/"
+
+    normative_updates:
+      - key: lr_36_1997
+        status: consolidated
+        title: "Legge urbanistica regionale"
+        processing_effect:
+          - "distinguere stato procedurale ed efficacia di ciascun piano"
+          - "riconoscere ambiti, distretti e PUO come strutture specifiche del PUC"
+          - "verificare la coerenza con la pianificazione di bacino"
+        source_url: "https://lrv.regione.liguria.it/liguriass_prod/articolo?pr=idx%2C0%3Bartic%2C1%3Barticparziale%2C0&urndoc=urn%3Anir%3Aregione.liguria%3Alegge%3A1997%3B36"

@@ -18,3 +18,6 @@ __pycache__/
 
 # I generati del Layer_Processor sono gestiti dal suo .gitignore
 # (Layer_Processor/{raw,work,out,state} restano fuori).
+
+# dati scaricati (non versionare)
+Redditi_e_principali_variabili_IRPEF_su_base_comunale_CSV_2024.csv

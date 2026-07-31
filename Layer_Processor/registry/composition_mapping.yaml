@@ -1,0 +1,231 @@
+# ============================================================================
+# DIZIONARIO DI COMPOSIZIONE — layer GREZZO → layer FINALE, tramite il CONCETTO.
+#
+# Principio: ogni layer finale esprime lo STESSO concetto in ogni regione, ma i
+# layer grezzi che lo alimentano CAMBIANO da regione a regione. Il ponte è la
+# CLASSE CANONICA (il concetto, region-agnostic). Quindi:
+#
+#     layer grezzo  →  classe canonica (concetto)  →  layer finale
+#
+# Torino = RIFERIMENTO (linee generali). Per aggiungere una regione basta elencare
+# i suoi layer grezzi sotto la classe canonica giusta in `by_region`. Per
+# aggiungere/togliere un layer da un finale: si edita una lista qui. Nessun codice.
+#
+# Coerente con:
+#   registry/canonical_taxonomy.yaml   (definizione delle classi canoniche + torino_ref)
+#   registry/composition_targets.yaml  (i layer finali e i loro `sources` = classi canoniche)
+#   registry/layer_dictionary.yaml     (regole testo grezzo → classe canonica, per il recognize)
+# ============================================================================
+
+version: 1
+reference_platform: "mobilitylens.com/piattaforma (Torino / Città metropolitana)"
+
+final_layers:
+
+  # ---- Blocco 1 · Regole e costruibilità ----------------------------------
+  PIANI_MATURITA:
+    block: 1
+    concept: "Stato/annata di adeguamento del piano urbanistico, per comune."
+    canonical_classes: [PIANI_MATURITA]
+    reference_torino:
+      PIANI_MATURITA: [PIE-QUADRO-PIANI]
+    by_region:
+      valle_aosta:
+        PIANI_MATURITA: ["Iter di adeguamento PRG al PTP (Siti/MapServer/3)", "feed r_vda_prg_updates"]
+      lombardia:
+        PIANI_MATURITA: ["Stato di approvazione del PGT per comune", "Scheda PGTWEB per comune"]
+      emilia_romagna:
+        PIANI_MATURITA: ["PSC — Comuni presenti in banca dati", "stato amministrativo PUG per comune"]
+
+  ANALISI_URBANISTICA:
+    block: 1
+    concept: "Destinazioni d'uso normalizzate in classi semantiche uniformi, con overlay catastale dove disponibile."
+    canonical_classes: [PRG_ZONING, PRG_EDIFICI_STORICI, CATASTO, USI_POI_POLIGONALI]
+    reference_torino:
+      PRG_ZONING: [PIE-PRG-ZONE, PIE-PRG-STORICO-TO]
+      PRG_EDIFICI_STORICI: [PIE-PRG-STORICO]
+      CATASTO: [PIE-CATASTO-FOGLI]   # overlay fogli di mappa (opzionale)
+    by_region:
+      valle_aosta:
+        PRG_ZONING: ["P4 Zone", "P4 Comparti sottozone", "P4 Aree sottoposte a particolari limitazioni e disciplina"]
+        PRG_EDIFICI_STORICI: ["P4 Classificazione degli edifici ricadenti nelle zone di tipo A"]
+      lombardia:
+        PRG_ZONING:
+          - "PGT — Modalità attuative"
+          - "PGT — Ambiti di trasformazione"
+          - "PGT — Ambiti di rigenerazione urbana e territoriale"
+          - "PGT — Aree dismesse, abbandonate e degradate"
+          - "PGT — Servizi e impianti"
+          - "PGT — Aree agricole"
+          - "PGT — Ambiti del tessuto urbano consolidato"
+          - "PGT — Carta del consumo di suolo"
+        PRG_EDIFICI_STORICI: ["PGT — Nuclei di antica formazione"]
+      emilia_romagna:
+        PRG_ZONING:
+          - "PUG — Territorio urbanizzato all'01/01/2018"
+          - "PUG — Classificazione territorio"
+          - "PUG — Disciplina regolativa ordinaria"
+          - "PUG — Disciplina accordi operativi"
+          - "PSC — Classificazione del territorio"
+          - "PSC — Assetto per ambiti"
+        PRG_EDIFICI_STORICI: ["PUG — Sistema insediativo storico"]
+    national_feeds: [n_opere_incompiute, n_hotosm_poi]
+
+  SEMAFORO_EDIFICABILITA:
+    block: 1
+    concept: "Verdetto rosso/giallo/verde/grigio incrociando destinazione + vincoli + rischi."
+    derived: true
+    inputs: [ANALISI_URBANISTICA, TUTELE_AMBIENTALI_PAESAGGISTICHE, RISCHI_PERICOLOSITA, PIANI_MATURITA]
+    reference_torino:
+      base_lotti: [PIE-SEMAFORO-LOTTI]
+
+  # ---- Blocco 2 · Ambiente e tutele ---------------------------------------
+  TUTELE_AMBIENTALI_PAESAGGISTICHE:
+    block: 2
+    concept: "Cosa condiziona la trasformazione per ragioni ambientali-paesaggistiche."
+    canonical_classes: [AREE_PROTETTE, RETE_ECOLOGICA, VINCOLI_PAESAGGISTICI, ACQUE, AGRICOLTURA]
+    reference_torino:
+      AREE_PROTETTE: [PIE-TUT-AREE-PROTETTE, PIE-TUT-PROTETTE-ISTITUITE, PIE-TUT-PROTETTE-PROV-IST, PIE-TUT-PROTETTE-PROV-PROP, PIE-NATURA-2000]
+      RETE_ECOLOGICA: [PIE-TUT-CORRIDOI-ECO, PIE-TUT-AVE, PIE-TUT-CONNETTIVITA]
+      VINCOLI_PAESAGGISTICI: [PIE-TUT-VINCOLI-PAESAGGISTICI, PIE-TUT-PREGIO-PAESAGGISTICO, PIE-PPR-AMBITI, PIE-PPR-VINCOLI, PIE-PPR-CRINALI]
+      ACQUE: [PIE-PPR-ACQUE, PIE-TUT-ACQUE-SPECIFICHE]
+      AGRICOLTURA: [PIE-PPR-AGRICOLTURA]
+    by_region:
+      valle_aosta:
+        AREE_PROTETTE: ["AreeTutelate", "P2 Parchi", "P2 Riserve", "P2 Aree di pregio naturalistico"]
+        VINCOLI_PAESAGGISTICI: ["VincoliSoprintendenza", "P1 Aree di specifico interesse paesaggistico", "P1 Unità di paesaggio"]
+        ACQUE: ["Idrografia", "Demanio Idrico", "M5 Fascia di rispetto dei fiumi"]
+        AGRICOLTURA: ["AttivitaAgricole", "M3 Uso del suolo", "Forestazione"]
+      lombardia:
+        RETE_ECOLOGICA:
+          - "PGT — Corridoi della rete ecologica comunale"
+          - "PGT — Aree critiche della rete ecologica comunale"
+          - "PGT — Aree di supporto della rete ecologica comunale"
+          - "PGT — Nodi della rete ecologica comunale"
+          - "PGT — Varchi della rete ecologica comunale"
+          - "PGT — Zone di riqualificazione della rete ecologica comunale"
+        VINCOLI_PAESAGGISTICI:
+          - "PGT — Aree di valore paesaggistico-ambientale ed ecologico"
+          - "PGT — Classi di sensibilità paesistica"
+        AGRICOLTURA: ["PGT — Aree agricole"]
+      emilia_romagna:
+        VINCOLI_PAESAGGISTICI:
+          - "Cartografie paesaggistiche PTPR/PTCP ancora efficaci"
+        RETE_ECOLOGICA:
+          - "Elementi strutturali PUG classificati ECO"
+
+  RISCHI_PERICOLOSITA:
+    block: 2
+    concept: "Cosa condiziona la costruzione per sicurezza (idraulico/geologico)."
+    canonical_classes: [RISCHIO_IDRAULICO, DISSESTO_GEOLOGICO, VINCOLO_IDROGEOLOGICO, ALLERTA_PROTEZIONE_CIVILE]
+    reference_torino:
+      RISCHIO_IDRAULICO: [PIE-PGRA-PERICOLOSITA, PIE-FASCE-FLUVIALI, PIE-PAI-ESONDAZIONI]
+      DISSESTO_GEOLOGICO: [PIE-DISSESTO-FRANE, PIE-DISSESTO-INONDABILI, PIE-DISSESTO-INSTABILI, PIE-PAI-FRANE]
+      VINCOLO_IDROGEOLOGICO: [PIE-VINCOLO-IDROGEO]
+      ALLERTA_PROTEZIONE_CIVILE: [PIE-ALLERTA-ZONE]
+    by_region:
+      valle_aosta:
+        RISCHIO_IDRAULICO: ["CartaPAI", "Direttiva Alluvioni Complessiva Quadro Conoscitivo PAI", "Alluvione2024"]
+        DISSESTO_GEOLOGICO: ["CartaDissesti", "Ambiti Inedificabili (art.35 Frane / art.37 Valanghe)", "CatastoValanghe"]
+      lombardia:
+        DISSESTO_GEOLOGICO:
+          - "PGT — Fattibilità geologica"
+          - "PGT — Pericolosità sismica lineare"
+          - "PGT — Pericolosità sismica poligonale"
+
+  # ---- Blocco 3 · Infrastrutture, servizi e attrattività · stato attuale ---
+  MOBILITA_ACCESSIBILITA:
+    block: 3
+    concept: "Trasporto pubblico + mobilità dolce + nodi (accessibilità)."
+    canonical_classes: [TPL, FERROVIA, METRO, CICLABILI, SHARING, RICARICA]
+    reference_torino:
+      TPL: [PIE-GTFS-RETE, PIE-GTFS-FERMATE]
+      FERROVIA: [PIE-FERROVIE-STORICO, PIE-STAZIONI-FS, PIE-PTCP-STAZIONI]
+      METRO: [PIE-MOB-METRO]
+      CICLABILI: [PIE-MOB-CICLABILE]
+      SHARING: [PIE-MOB-SHARING]
+      RICARICA: [PIE-MOB-RICARICA]
+    by_region:
+      valle_aosta:
+        FERROVIA: ["P3 Elementi lineari (Ferrovia)", "Stazioni ferroviarie (PTP)"]
+        CICLABILI: ["Piste Ciclabili"]
+
+  RETE_VIABILITA:
+    block: 3
+    concept: "Rete stradale gerarchica + grafo urbano, con sosta/accessi urbani e opere AINOP come overlay."
+    canonical_classes: [VIABILITA, SOSTA_ACCESSI, INFRASTRUTTURE_AINOP]
+    reference_torino:
+      VIABILITA: [PIE-VIAB-AUTOSTRADE, PIE-VIAB-STATALI, PIE-VIAB-PROVINCIALI, PIE-VIAB-COMUNALI, PIE-GRAFO-TORINO]
+      SOSTA_ACCESSI: [PIE-MOB-ZTL, PIE-MOB-AREE-PEDONALI, PIE-MOB-PARK-BLU, PIE-MOB-PARK-CONTROLLATO, PIE-MOB-PARK-DISABILI, PIE-MOB-SENSI-UNICI, PIE-MOB-LOGES, PIE-MOB-AEROPORTI]
+      INFRASTRUTTURE_AINOP: [ainop-infrastructure]
+    by_region:
+      valle_aosta:
+        VIABILITA: ["Viabilità Globale", "Autostrada (PTP)", "Viabilità principale (PTP)"]
+      emilia_romagna:
+        VIABILITA: ["PSC — Mobilità puntuale", "PSC — Mobilità lineare", "PSC — Mobilità poligonale"]
+    national_feeds: [n_ainop_opere]   # elenco opere AINOP (CKAN MIT, lib/ckan_mit.py)
+
+  SERVIZI_POLARITA:
+    block: 3
+    concept: "Dotazioni di prossimità: istruzione, sanità, cultura/sport."
+    canonical_classes: [SERVIZI_ISTRUZIONE, SERVIZI_SANITA, SERVIZI_CULTURA_SPORT]
+    reference_torino:
+      SERVIZI_ISTRUZIONE: [PIE-SERV-ISTRUZIONE]
+      SERVIZI_SANITA: [PIE-SERV-SANITA]
+      SERVIZI_CULTURA_SPORT: [PIE-SERV-CULTURA-SPORT, PIE-PRG-SERVIZI]
+    by_region:
+      emilia_romagna:
+        SERVIZI_CULTURA_SPORT:
+          - "PUG — Dotazioni territoriali (Punti/Linee/Poligoni)"
+          - "PSC — Dotazioni puntuali/lineari/poligonali"
+
+  PUNTI_INTERESSE:
+    block: 3
+    concept: "Punti di interesse OSM/HOTOSM, distinti dalle polarità istituzionali."
+    canonical_classes: [POI_PUNTUALI]
+    national_feeds: [n_hotosm_poi]
+
+  COMMERCIO_PRODUTTIVO:
+    block: 3
+    concept: "Tessuto commerciale e produttivo."
+    canonical_classes: [COMMERCIO, MERCATI, POLI_PRODUTTIVI]
+    reference_torino:
+      COMMERCIO: [PIE-ECO-COMMERCIO]
+      MERCATI: [PIE-ECO-MERCATI]
+      POLI_PRODUTTIVI: [PIE-ECO-PRODUTTIVI]
+
+  VALORI_OMI:
+    block: 3
+    concept: "Valori di mercato immobiliare (€/m²)."
+    canonical_classes: [OMI_VALORI]
+    reference_torino:
+      OMI_VALORI: [PIE-OMI-COMUNI, PIE-OMI-QUARTIERI]
+    national_feeds: [n_omi]   # perimetri + valori OMI nazionali (lib/omi.py)
+
+  DEMOGRAFIA:
+    block: 3
+    concept: "Popolazione, densità, composizione."
+    canonical_classes: [DEMOGRAFIA]
+    reference_torino:
+      DEMOGRAFIA: [PIE-DEMOGRAFIA]
+
+  ENERGIA_RETI:
+    block: 3
+    concept: "Impianti di produzione + reti energetiche con fasce di rispetto."
+    canonical_classes: [ENERGIA]
+    reference_torino:
+      ENERGIA: [PIE-ENERGIA-CENTRALI, PIE-RETI-ENERGETICHE]
+    by_region:
+      valle_aosta:
+        ENERGIA: ["Impianti di produzione di energia da fonti rinnovabili", "P3 Elementi lineari (Elettrodotti/Metanodotto/Oleodotto)"]
+
+# ============================================================================
+# COME SI USA
+#  - Aggiungere un layer grezzo a un finale: mettilo sotto la classe canonica giusta
+#    (in reference_torino o in by_region.<regione>). Se la classe non è ancora tra i
+#    `sources` del finale in composition_targets.yaml, aggiungila lì.
+#  - Togliere un layer: rimuovilo dalla lista.
+#  - Nuova regione: crea by_region.<regione> e mappa i suoi layer grezzi sulle classi
+#    canoniche esistenti (stesso concetto). Il recognize (layer_dictionary.yaml) fa il
+#    match automatico per keyword; questo file è la vista/controllo umano esplicito.
+# ============================================================================

@@ -14,6 +14,7 @@ import json
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -30,18 +31,28 @@ def _level(uuid: str) -> str:
     return next((v for k, v in LEVEL_PREFIX.items() if str(uuid).startswith(k)), "sconosciuto")
 
 
-def run(catalog: Path, ente: str) -> dict:
+def run(
+    catalog: Path,
+    ente: str,
+    progress: Callable[[int, int], None] | None = None,
+) -> dict:
     catalog = Path(catalog)
     rec = Recognizer()
     matched, proposals = [], []
     by_class: Counter = Counter()
 
     with catalog.open(encoding="utf-8", newline="") as fh:
-        for row in csv.DictReader(fh):
+        rows = list(csv.DictReader(fh))
+        total_rows = len(rows)
+        if progress:
+            progress(0, total_rows)
+        for index, row in enumerate(rows, 1):
             title = (row.get("title") or "").strip()
             topic = (row.get("topic") or "").strip()
             uuid = (row.get("uuid") or "").strip()
             if not title:
+                if progress and (index % 25 == 0 or index == total_rows):
+                    progress(index, total_rows)
                 continue
             m = rec.match(title, topic)
             base = {
@@ -55,6 +66,8 @@ def run(catalog: Path, ente: str) -> dict:
                                 "matched": m.matched, "reason": m.reason})
             else:
                 proposals.append({**base, "candidates": m.proposals})
+            if progress and (index % 25 == 0 or index == total_rows):
+                progress(index, total_rows)
 
     (WORK / "recognition").mkdir(parents=True, exist_ok=True)
     (WORK / "proposals").mkdir(parents=True, exist_ok=True)

@@ -49,9 +49,30 @@ classes:
     macro: 1
     plan_type: regolatore
     geometry: polygon
-    description: "Stato/annata della disciplina urbanistica per comune (semaforo maturità)."
+    description: "Stato procedurale normalizzato del piano urbanistico vigente o in adeguamento, rappresentato sul poligono comunale."
     topics: [planningCadastre, boundaries]
     torino_ref: [PIE-QUADRO-PIANI]
+  VINCOLI_COMUNALI:
+    macro: 1
+    plan_type: regolatore
+    geometry: mixed
+    description: "Geometrie dei vincoli ritagliate per comune, con effetto, severità, fonte e copertura."
+    topics: [planningCadastre, environment, geoscientificInformation]
+    torino_ref: [PIE-VINCOLI-COMUNALI]
+  SEMAFORO_EDIFICABILITA:
+    macro: 1
+    plan_type: regolatore
+    geometry: polygon
+    description: "Screening verde/giallo/rosso per particella o zona urbanistica, con motivazioni e stato non valutabile per copertura insufficiente."
+    topics: [planningCadastre, environment]
+    torino_ref: [PIE-SEMAFORO-LOTTI]
+  USI_POI_POLIGONALI:
+    macro: 1
+    plan_type: stato
+    geometry: polygon
+    description: "Usi e funzioni osservati da POI poligonali OSM; overlay informativo, non destinazione urbanistica prescrittiva."
+    topics: [planningCadastre, society, structure]
+    torino_ref: []
 
   # ---- Macro 2 · Ambiente e tutele (regolatore) ---------------------------
   AREE_PROTETTE:
@@ -196,6 +217,27 @@ classes:
     description: "Cultura, sport, attrattori (musei, teatri, biblioteche, impianti, UNESCO)."
     topics: [society, structure]
     torino_ref: [PIE-SERV-CULTURA-SPORT]
+  SERVIZI_POI:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Punti di interesse e servizi generici sul territorio non riconducibili a una polarità specifica (istruzione/sanità/cultura), es. POI delle Comunità di Valle."
+    topics: [structure, society]
+    torino_ref: []
+  POI_PUNTUALI:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Punti di interesse OSM nazionali classificati per amenity, shop, tourism e man_made."
+    topics: [structure, society, economy]
+    torino_ref: []
+  DISTRIBUTORI_CARBURANTE:
+    macro: 3
+    plan_type: stato
+    geometry: point
+    description: "Impianti di distribuzione carburante (anagrafica impianti attivi MIMIT), con gestore, bandiera e indirizzo; punti di servizio sul territorio."
+    topics: [economy, structure]
+    torino_ref: []
   COMMERCIO:
     macro: 3
     plan_type: stato

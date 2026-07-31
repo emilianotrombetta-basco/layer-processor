@@ -1,0 +1,388 @@
+# ============================================================================
+# OBIETTIVI DELLO STADIO 04 · COMPOSIZIONE
+#
+# Sono prodotti cartografici, non semplici tabelle. Ogni feature conserva fonti,
+# data di acquisizione, copertura e motivazioni. Il Semaforo è uno screening
+# tecnico: non sostituisce certificato urbanistico, titolo edilizio, pareri o
+# autorizzazioni degli enti competenti.
+# ============================================================================
+
+version: 1
+crs: EPSG:4326
+traceability_required: true
+common_fields:
+  - codice_istat
+  - comune
+  - provincia
+  - regione
+  - source_uuid
+  - source_title
+  - source_url
+  - source_date
+  - processed_at
+  - coverage_status
+
+targets:
+  PIANI_MATURITA:
+    title: "Stato di adeguamento dei piani regolatori comunali"
+    geometry: municipality_polygon
+    scale:
+      overview: comune
+      detail: comune
+    source_plan_aliases: [PGT, PRG, PRGC, PUC, PSC, PAT, PATI]
+    required_fields:
+      - plan_name
+      - plan_status_code
+      - plan_status_label
+      - cartography_status
+      - procedure_date
+    statuses:
+      APPROVATO:
+        label: "Testo definitivo approvato"
+        rank: 6
+      APPROVATO_CARTOGRAFIA_IN_CONSEGNA:
+        label: "Testo definitivo approvato, cartografia in fase di consegna"
+        rank: 5
+      DEFINITIVO_IN_VALUTAZIONE:
+        label: "Testo definitivo in corso di valutazione o sospeso per richiesta di integrazioni documentali"
+        rank: 4
+      BOZZA_VALUTATA:
+        label: "Testo in bozza valutato, testo definitivo da valutare"
+        rank: 3
+      BOZZA_IN_VALUTAZIONE:
+        label: "Testo in bozza in corso di valutazione o sospeso per richiesta di integrazioni documentali"
+        rank: 2
+      ITER_NON_AVVIATO:
+        label: "Comune che non ha avviato l’iter di approvazione della variante generale"
+        rank: 1
+      NON_DETERMINATO:
+        label: "Stato non determinabile con le fonti disponibili"
+        rank: 0
+    regional_mappings:
+      valle_d_aosta:
+        APP: APPROVATO
+        APC: APPROVATO_CARTOGRAFIA_IN_CONSEGNA
+        VIC: DEFINITIVO_IN_VALUTAZIONE
+        BVT: BOZZA_VALUTATA
+        BCV: BOZZA_IN_VALUTAZIONE
+        AFF: BOZZA_IN_VALUTAZIONE
+        INA: ITER_NON_AVVIATO
+      lombardia:
+        VIGENTE_CARTOGRAFIA_CARICATA: APPROVATO
+        VIGENTE_CARTOGRAFIA_NON_CARICATA: APPROVATO_CARTOGRAFIA_IN_CONSEGNA
+        APPROVAZIONE_NON_VIGENTE: DEFINITIVO_IN_VALUTAZIONE
+        ADOZIONE: DEFINITIVO_IN_VALUTAZIONE
+        AVVIO: BOZZA_IN_VALUTAZIONE
+        DA_AVVIARE: ITER_NON_AVVIATO
+        NON_DETERMINATO: NON_DETERMINATO
+
+  VINCOLI_COMUNALI:
+    title: "Vincoli e condizioni territoriali"
+    geometry: source_geometry_clipped_to_municipality
+    scale:
+      overview: comune
+      detail: "geometria originale del vincolo, ritagliata sul confine comunale"
+    required_fields:
+      - constraint_family
+      - constraint_name
+      - severity
+      - effect
+      - legal_reference
+      - source_coverage_pct
+    families:
+      - key: inedificabilita_e_dissesto
+        examples: [frane, valanghe, aree inondabili, PAI, PGRA]
+      - key: paesaggio_e_beni_culturali
+        examples: [vincoli paesaggistici, archeologici, beni culturali, centri storici]
+      - key: natura_e_biodiversita
+        examples: [parchi, riserve, Natura 2000, boschi, rete ecologica]
+      - key: acque
+        examples: [fasce fluviali, laghi, reticolo idrografico, demanio idrico]
+      - key: infrastrutture_e_fasce_rispetto
+        examples: [strade, ferrovie, aeroporti, elettrodotti, gasdotti, oleodotti, cimiteri]
+      - key: rumore_e_salubrita
+        examples: [zonizzazione acustica, industrie a rischio, siti contaminati]
+      - key: disciplina_urbanistica
+        examples: [limitazioni PRG/PUC, destinazioni d’uso, edifici tutelati]
+    severity:
+      blocking:
+        meaning: "Divieto o incompatibilità esplicita nella fonte normativa."
+      conditional:
+        meaning: "Intervento subordinato a limiti, autorizzazioni o verifiche."
+      informative:
+        meaning: "Elemento utile all’attrattività, senza effetto edificatorio automatico."
+      unknown:
+        meaning: "Effetto non classificabile automaticamente; richiede revisione."
+
+  SEMAFORO_EDIFICABILITA:
+    title: "Semaforo di edificabilità"
+    geometry: planning_zone_or_cadastral_parcel
+    scale:
+      overview: comune
+      detail_priority: [particella_catastale, zona_urbanistica]
+      fallback: none
+      note: >
+        Il dettaglio non viene inventato: se particelle o zone urbanistiche non
+        sono disponibili, resta soltanto l’overview comunale con copertura
+        incompleta.
+    required_inputs:
+      - municipal_boundary
+      - current_planning_zone_or_parcel
+      - complete_constraint_inventory
+      - plan_status
+    required_fields:
+      - signal
+      - intervention_mode
+      - reasons
+      - blocking_constraints
+      - conditional_constraints
+      - required_checks
+      - source_coverage_pct
+      - confidence
+    rules:
+      RED:
+        label: "Non edificabile o interventi sull’esistente fortemente limitati"
+        when: "almeno un vincolo blocking applicabile interseca l’unità"
+      YELLOW:
+        label: "Edificabilità o trasformazione condizionata"
+        when: "nessun blocking e almeno un vincolo conditional applicabile"
+      GREEN:
+        label: "Potenzialmente edificabile o trasformabile"
+        when: >
+          nessun blocking/conditional rilevato, destinazione urbanistica
+          compatibile e copertura delle fonti obbligatorie completa
+        disclaimer: "Non equivale a un diritto edificatorio o a un titolo abilitativo."
+      UNASSESSED:
+        label: "Non valutabile per copertura insufficiente"
+        when: "manca almeno un input obbligatorio o la sua copertura non è verificata"
+        display_color: gray
+    precedence: [UNASSESSED, RED, YELLOW, GREEN]
+
+  # ==========================================================================
+  # LAYER FINALI approvati (struttura mobilitylens.com/piattaforma, blocchi 1-3).
+  # I 3 target sopra hanno già il builder in lib/compose_engine.py. Quelli sotto
+  # sono DEFINIZIONI approvate in attesa del rispettivo builder: finché non è
+  # implementato, compare in dashboard come 'assente'. Ogni layer conserva la
+  # tracciabilità per feature (common_fields) e classi interne accendibili.
+  # ==========================================================================
+
+  # ---- Blocco 1 · Regole e costruibilità ----------------------------------
+  ANALISI_URBANISTICA:
+    title: "Analisi Urbanistica"
+    block: 1
+    plan_type: regolatore
+    geometry: planning_zone_polygon
+    scale: {overview: comune, detail: zona_urbanistica}
+    sources: [PRG_ZONING, PRG_EDIFICI_STORICI, CATASTO, USI_POI_POLIGONALI]
+    expresses: >
+      Destinazioni d'uso normalizzate in classi semantiche uniformi su tutto il
+      territorio, indipendenti dalle sigle locali del PRG. Include il catasto
+      (fogli di mappa) come overlay accendibile dove il dato esiste.
+    classes:
+      - residenziale
+      - produttivo
+      - servizi_e_dotazioni
+      - agricolo
+      - verde_e_pregio_naturale
+      - terziario_commerciale
+      - turistico_ricettivo
+      - polifunzionale
+      - ambiti_di_trasformazione
+      - edifici_di_valore_storico
+      - fogli_catastali   # overlay catasto (cadastral_sheet_polygon), opzionale
+      - usi_osservati_osm # overlay HOTOSM informativo, non prescrittivo
+      - altro_da_verificare
+
+  # ---- Blocco 2 · Ambiente e tutele (split di VINCOLI_COMUNALI) ------------
+  # Due viste per comune derivate dall'inventario VINCOLI_COMUNALI (che resta la
+  # base tecnica usata anche dal Semaforo): partizione per famiglia di vincolo.
+  TUTELE_AMBIENTALI_PAESAGGISTICHE:
+    title: "Tutele ambientali e paesaggistiche"
+    block: 2
+    plan_type: regolatore
+    geometry: source_geometry_clipped_to_municipality
+    derived_from: VINCOLI_COMUNALI
+    families: [paesaggio_e_beni_culturali, natura_e_biodiversita, acque]
+    sources: [AREE_PROTETTE, RETE_ECOLOGICA, VINCOLI_PAESAGGISTICI, ACQUE, AGRICOLTURA]
+    required_fields: [constraint_family, constraint_name, severity, effect, legal_reference, source_coverage_pct]
+    expresses: >
+      Ciò che limita/condiziona la trasformazione per ragioni ambientali e
+      paesaggistiche: aree protette e Natura 2000, rete ecologica, vincoli
+      paesaggistici (D.Lgs 42/2004), acque tutelate, agricoltura di pregio.
+
+  RISCHI_PERICOLOSITA:
+    title: "Rischi e pericolosità"
+    block: 2
+    plan_type: regolatore
+    geometry: source_geometry_clipped_to_municipality
+    derived_from: VINCOLI_COMUNALI
+    families: [inedificabilita_e_dissesto]
+    sources: [RISCHIO_IDRAULICO, DISSESTO_GEOLOGICO, VINCOLO_IDROGEOLOGICO, ALLERTA_PROTEZIONE_CIVILE]
+    required_fields: [constraint_family, constraint_name, severity, effect, legal_reference, source_coverage_pct]
+    expresses: >
+      Ciò che condiziona per sicurezza: pericolosità alluvioni (PGRA), fasce
+      fluviali PAI, dissesto geologico (frane/inondabili/instabili), vincolo
+      idrogeologico, zone di allertamento di protezione civile.
+
+  # ---- Blocco 3 · Infrastrutture, servizi e attrattività · stato attuale ---
+  MOBILITA_ACCESSIBILITA:
+    title: "Mobilità e accessibilità"
+    block: 3
+    plan_type: stato
+    geometry: mixed
+    scale: {overview: territorio, detail: territorio}
+    sources: [TPL, FERROVIA, METRO, CICLABILI, SHARING, RICARICA]
+    expresses: "Rete TPL (GTFS), ferrovia/stazioni, metro, ciclabili, sharing e ricarica; punti uniti nelle linee."
+    classes: [tpl_bus, tpl_tram, tpl_metro, tpl_ferro, ferrovia, stazioni, metro, ciclabili, sharing, ricarica]
+
+  RETE_VIABILITA:
+    title: "Rete stradale e viabilità"
+    block: 3
+    plan_type: stato
+    geometry: mixed
+    sources: [VIABILITA, SOSTA_ACCESSI, INFRASTRUTTURE_AINOP]
+    expresses: >
+      Gerarchia stradale (autostrade, statali, provinciali, comunali) + grafo
+      urbano; sosta e accessi urbani (ZTL, aree pedonali, parcheggi, sensi unici,
+      LOGES, aeroporti); opere infrastrutturali censite AINOP (stato attuale).
+    classes:
+      - autostrade
+      - statali
+      - provinciali
+      - comunali
+      - grafo_urbano
+      - sosta_accessi   # ZTL, aree pedonali, parcheggi, sensi unici, LOGES, aeroporti
+      - infrastrutture_ainop   # opere AINOP (punti), overlay accendibile
+
+  SERVIZI_POLARITA:
+    title: "Servizi e polarità"
+    block: 3
+    plan_type: stato
+    geometry: point
+    sources: [SERVIZI_ISTRUZIONE, SERVIZI_SANITA, SERVIZI_CULTURA_SPORT, SERVIZI_POI]
+    expresses: "Dotazioni di prossimità: istruzione, sanità, cultura/sport, POI generici."
+    classes: [istruzione, sanita, cultura_sport, poi]
+
+  PUNTI_INTERESSE:
+    title: "Punti di interesse"
+    block: 3
+    plan_type: stato
+    geometry: point
+    scale: {overview: comune, detail: punto}
+    sources: [POI_PUNTUALI, DISTRIBUTORI_CARBURANTE]
+    required_fields: [poi_family, poi_value, osm_id, osm_type]
+    expresses: >
+      POI nazionali OpenStreetMap/HOTOSM: servizi, attività, turismo e manufatti.
+      È una base crowdsourced non esaustiva, distinta dalle fonti istituzionali.
+    classes: [amenity, shop, tourism, man_made]
+
+  COMMERCIO_PRODUTTIVO:
+    title: "Commercio e sistema produttivo"
+    block: 3
+    plan_type: stato
+    geometry: mixed
+    sources: [COMMERCIO, MERCATI, POLI_PRODUTTIVI]
+    expresses: "Attività commerciali, mercati/fiere, aree e poli produttivi."
+    classes: [commercio, mercati, poli_produttivi]
+
+  VALORI_OMI:
+    title: "Valori immobiliari OMI"
+    block: 3
+    plan_type: stato
+    geometry: polygon
+    sources: [OMI_VALORI]
+    expresses: "Valori di mercato (€/m²) per zona OMI / comune / quartiere, con gradiente di valore."
+
+  DEMOGRAFIA:
+    title: "Demografia"
+    block: 3
+    plan_type: stato
+    geometry: polygon
+    sources: [DEMOGRAFIA]
+    expresses: "Popolazione, densità e composizione sociale per zona statistica/comune."
+
+  ENERGIA_RETI:
+    title: "Energia e reti"
+    block: 3
+    plan_type: stato
+    geometry: mixed
+    sources: [ENERGIA]
+    expresses: "Impianti di produzione + reti (metanodotti/oleodotti) con fasce di rispetto."
+
+  # ==========================================================================
+  # NUOVI TARGET (2026-07-31, approvati dall'utente) — planned: true finché non
+  # sono costruiti gli adapter delle fonti nazionali che li alimentano. I target
+  # planned NON concorrono alla completezza della composizione.
+  # ==========================================================================
+
+  BENI_CULTURALI:
+    title: "Beni culturali"
+    block: 3
+    plan_type: stato
+    geometry: point
+    scale: {overview: comune, detail: punto}
+    sources: [BENE_CULTURALE, VINCOLO_CULTURALE]
+    expresses: >
+      Patrimonio culturale (ArCo/ICCD + Cultura dataset locali): schede
+      catalografiche e vincoli. Punti e, dove disponibili, perimetri di tutela.
+    classes: [architettonico, archeologico, storico_artistico, vincolo]
+    planned: true
+
+  CONNETTIVITA_DIGITALE:
+    title: "Connettività digitale"
+    block: 3
+    plan_type: stato
+    geometry: municipality_polygon
+    scale: {overview: comune, detail: comune}
+    sources: [COPERTURA_BANDA]
+    expresses: >
+      Copertura a banda larga/ultralarga per comune (AGCOM): tecnologie e
+      velocità disponibili, divario digitale.
+    classes: [banda_ultralarga, banda_larga, digital_divide]
+    planned: true
+
+  TRASPARENZA_APPALTI:
+    title: "Trasparenza e appalti"
+    block: 4
+    plan_type: stato
+    geometry: municipality_polygon
+    scale: {overview: comune, detail: comune}
+    sources: [APPALTO_PUBBLICO, FLUSSO_CASSA_ENTE]
+    expresses: >
+      Appalti pubblici (ANAC/OCDS) e movimenti di cassa degli enti (SIOPE)
+      aggregati per comune/stazione appaltante.
+    classes: [appalto, cassa]
+    planned: true
+
+  TURISMO_RICETTIVITA:
+    title: "Turismo e ricettività"
+    block: 3
+    plan_type: stato
+    geometry: municipality_polygon
+    scale: {overview: comune, detail: comune}
+    sources: [STRUTTURA_RICETTIVA]
+    expresses: >
+      Capacità e movimento delle strutture ricettive per comune (ISTAT):
+      posti letto, arrivi, presenze, alberghiero ed extra-alberghiero.
+    classes: [alberghiero, extra_alberghiero]
+    planned: true
+
+  AMBIENTE_RIFIUTI:
+    title: "Ambiente — rifiuti"
+    block: 3
+    plan_type: stato
+    geometry: municipality_polygon
+    scale: {overview: comune, detail: comune}
+    sources: [GESTIONE_RIFIUTI]
+    expresses: >
+      Produzione e gestione dei rifiuti urbani per comune (ISPRA catasto
+      rifiuti): raccolta totale e differenziata.
+    classes: [rifiuti_urbani, raccolta_differenziata]
+    planned: true
+
+quality_gates:
+  - "nessun GREEN se la copertura delle fonti obbligatorie non è completa"
+  - "ogni RED o YELLOW deve riportare almeno una motivazione e una fonte"
+  - "la geometria finale deve essere valida e in EPSG:4326"
+  - "le feature senza codice ISTAT comunale vengono scartate e segnalate"
+  - "una regola regionale non viene trasferita automaticamente a un’altra regione"

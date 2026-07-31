@@ -9,3 +9,22 @@ state/
 __pycache__/
 *.pyc
 .DS_Store
+
+# dati locali pesanti (NON versionare)
+# ITALIA/ = ~28 GB catasto INSPIRE nazionale
+ITALIA/
+hotosm_ita_points_of_interest_points_geojson/
+hotosm_ita_points_of_interest_polygons_shp/
+
+# frontend: dipendenze e build
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.next/
+dashboard/.wrangler/
+dashboard/tsconfig.tsbuildinfo
+
+# scratch / file di test
+a.json
+b.json
+bc_test.json
+*.tmp
