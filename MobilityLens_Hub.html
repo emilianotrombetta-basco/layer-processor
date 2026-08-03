@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MobilityLens · Piattaforma</title>
+<meta name="theme-color" content="#081310">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   MobilityLens · Hub piattaforma (4 layer)
+   Interfaccia iniziale: diagramma di flusso interattivo con
+   zoom-camera sui processori + menu laterale a scomparsa.
+   File autosufficiente (nessuna dipendenza oltre ai font).
+   ============================================================ */
+:root{
+  --bg:#081310; --bg2:#0a1a15; --bg3:#05100c;
+  --panel:rgba(13,25,21,.72); --panel-solid:#0e1c17;
+  --ink:#e9f1ec; --ink-dim:#b7c8bf; --muted:#7f958b; --faint:#5b6d65;
+  --line:rgba(120,165,145,.16); --line-2:rgba(120,165,145,.28);
+  --green:#3ee0a5; --green-deep:#12b37e;
+  --gold:#f0c53f; --gold-deep:#d4a017;
+  --orange:#f2a24b; --violet:#9d8cf3; --blue:#5bb2e6;
+  --shadow:0 24px 60px rgba(0,0,0,.45);
+  --sidebar-w:392px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:"DM Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+  color:var(--ink); background:var(--bg);
+  overflow:hidden; -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+::selection{background:rgba(62,224,165,.28)}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-thumb{background:rgba(120,165,145,.22);border-radius:20px}
+::-webkit-scrollbar-thumb:hover{background:rgba(120,165,145,.4)}
+
+/* ---------- layout ---------- */
+.app{display:flex;height:100vh;width:100vw;position:relative}
+.sidebar{
+  flex:0 0 var(--sidebar-w); width:var(--sidebar-w);
+  display:flex;flex-direction:column;min-height:0;
+  background:linear-gradient(180deg,rgba(12,24,20,.96),rgba(8,18,15,.98));
+  border-right:1px solid var(--line);
+  backdrop-filter:blur(14px);
+  transition:margin-left .42s cubic-bezier(.7,0,.2,1),opacity .3s;
+  z-index:30;
+}
+.app.nav-closed .sidebar{margin-left:calc(var(--sidebar-w) * -1);opacity:0;pointer-events:none}
+.stage{flex:1;min-width:0;position:relative;overflow:hidden}
+
+/* ---------- sidebar header ---------- */
+.side-head{padding:22px 22px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:13px}
+.mark{width:42px;height:42px;flex:0 0 42px;filter:drop-shadow(0 4px 12px rgba(240,197,63,.28))}
+.brand-txt{min-width:0;flex:1}
+.brand-name{font-size:19px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.brand-name .lens{color:var(--gold)}
+.brand-sub{margin-top:4px;font-size:10.5px;color:var(--muted);letter-spacing:.02em;font-family:"IBM Plex Mono",monospace}
+.collapse-btn{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:9px;border:1px solid var(--line);color:var(--muted);transition:.2s}
+.collapse-btn:hover{color:var(--ink);border-color:var(--line-2);background:rgba(120,165,145,.08)}
+
+/* ---------- sidebar scroll body ---------- */
+.side-body{flex:1;min-height:0;overflow-y:auto;padding:16px 16px 20px}
+
+/* intro / accordions */
+.acc{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:rgba(255,255,255,.012);transition:border-color .25s,background .25s}
+.acc.open{border-color:var(--line-2);background:rgba(255,255,255,.022)}
+.acc.active{border-color:color-mix(in srgb,var(--acc) 55%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--acc) 22%,transparent),0 10px 30px rgba(0,0,0,.25)}
+.acc-head{width:100%;display:flex;align-items:center;gap:12px;padding:13px 14px;text-align:left}
+.acc-ico{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:11px;
+  background:color-mix(in srgb,var(--acc) 15%,transparent);
+  color:var(--acc);border:1px solid color-mix(in srgb,var(--acc) 30%,transparent)}
+.acc-ico svg{width:20px;height:20px}
+.acc-tt{flex:1;min-width:0}
+.acc-kicker{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;font-family:"IBM Plex Mono",monospace}
+.acc-name{font-size:14.5px;font-weight:600;letter-spacing:-.01em;margin-top:2px;display:flex;align-items:center;gap:8px}
+.chev{width:16px;height:16px;flex:0 0 16px;color:var(--faint);transition:transform .3s;transform:rotate(-90deg)}
+.acc.open .chev{transform:rotate(0)}
+.acc-body{max-height:0;overflow:hidden;transition:max-height .38s cubic-bezier(.6,0,.2,1)}
+.acc-body-inner{padding:2px 15px 16px 15px}
+.acc-desc{font-size:12.5px;line-height:1.6;color:var(--ink-dim);margin:0 0 12px}
+.acc-desc b{color:var(--ink);font-weight:600}
+
+/* status chip */
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:20px;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;font-family:"IBM Plex Mono",monospace}
+.chip .dot{width:6px;height:6px;border-radius:50%}
+.chip.live{background:rgba(62,224,165,.14);color:var(--green);border:1px solid rgba(62,224,165,.3)}
+.chip.live .dot{background:var(--green);box-shadow:0 0 0 0 rgba(62,224,165,.7);animation:pulse 2s infinite}
+.chip.soon{background:rgba(127,149,139,.12);color:var(--muted);border:1px solid var(--line-2)}
+.chip.soon .dot{background:var(--muted)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(62,224,165,.55)}70%{box-shadow:0 0 0 7px rgba(62,224,165,0)}100%{box-shadow:0 0 0 0 rgba(62,224,165,0)}}
+
+/* actions inside accordion */
+.acc-actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;font-size:12px;font-weight:600;transition:.2s;border:1px solid var(--line-2)}
+.btn svg{width:15px;height:15px}
+.btn.primary{background:linear-gradient(135deg,var(--green),var(--green-deep));color:#04120d;border:0;box-shadow:0 8px 22px rgba(62,224,165,.24)}
+.btn.primary:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(62,224,165,.34)}
+.btn.ghost{color:var(--ink-dim);background:rgba(120,165,145,.06)}
+.btn.ghost:hover{color:var(--ink);border-color:var(--line-2);background:rgba(120,165,145,.12)}
+.btn.disabled{color:var(--faint);border-style:dashed;cursor:not-allowed;background:transparent}
+.hint{margin:11px 0 0;font-size:10.5px;line-height:1.5;color:var(--muted);font-family:"IBM Plex Mono",monospace}
+.hint code{color:var(--ink-dim);background:rgba(120,165,145,.1);padding:1px 6px;border-radius:5px;font-size:10px}
+
+.side-caption{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);font-weight:700;font-family:"IBM Plex Mono",monospace;margin:18px 8px 9px;display:flex;align-items:center;gap:8px}
+.side-caption::after{content:"";flex:1;height:1px;background:var(--line)}
+
+.side-foot{padding:13px 22px;border-top:1px solid var(--line);display:flex;align-items:center;gap:9px;color:var(--muted);font-size:11px}
+.side-foot .mk{width:20px;height:20px;opacity:.9}
+
+/* ---------- stage / diagram ---------- */
+.stage-bg{position:absolute;inset:0;
+  background:
+    radial-gradient(1100px 620px at 24% 12%,rgba(62,224,165,.10),transparent 60%),
+    radial-gradient(900px 620px at 88% 22%,rgba(240,197,63,.09),transparent 58%),
+    radial-gradient(1000px 720px at 55% 118%,rgba(157,140,243,.10),transparent 60%),
+    linear-gradient(180deg,var(--bg2),var(--bg3));
+}
+.stage-grid{position:absolute;inset:0;opacity:.5;
+  background-image:linear-gradient(rgba(120,165,145,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(120,165,145,.06) 1px,transparent 1px);
+  background-size:44px 44px;-webkit-mask-image:radial-gradient(120% 120% at 50% 40%,#000 55%,transparent 100%);mask-image:radial-gradient(120% 120% at 50% 40%,#000 55%,transparent 100%)}
+
+.topbar{position:absolute;top:18px;left:18px;right:18px;z-index:12;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;pointer-events:none}
+.topbar > *{pointer-events:auto}
+.title-block{display:flex;align-items:center;gap:12px}
+.open-nav{width:40px;height:40px;display:none;place-items:center;border-radius:11px;border:1px solid var(--line-2);background:var(--panel);backdrop-filter:blur(8px);color:var(--ink)}
+.app.nav-closed .open-nav{display:grid}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.h-title{font-size:19px;font-weight:700;letter-spacing:-.02em;margin-top:2px;color:var(--ink)}
+.legend{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;backdrop-filter:blur(10px)}
+.lg{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--ink-dim);font-weight:500;padding:2px 4px}
+.lg i{width:9px;height:9px;border-radius:3px;display:inline-block}
+
+#diagram{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+/* SVG node styling driven by classes */
+.node{cursor:pointer}
+.node .card{transition:filter .3s}
+.node-shell{transition:opacity .45s}
+.dimmed{opacity:.24}
+.node .plate{transition:transform .25s;transform-box:fill-box;transform-origin:center}
+.node:hover .plate{filter:brightness(1.12)}
+.node-title{font-weight:700;letter-spacing:-.01em}
+.node-role{font-weight:500}
+.flow{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:9 9;animation:flow 1.4s linear infinite}
+.flow.dim{opacity:.3;animation-play-state:paused}
+@keyframes flow{to{stroke-dashoffset:-360}}
+.lato-label{font-family:"IBM Plex Mono",monospace;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+
+/* focus action bar over the stage */
+.focusbar{position:absolute;left:50%;bottom:26px;transform:translate(-50%,140%);z-index:14;
+  display:flex;align-items:center;gap:14px;padding:11px 12px 11px 18px;border-radius:16px;
+  background:var(--panel);border:1px solid var(--line-2);backdrop-filter:blur(16px);box-shadow:var(--shadow);
+  transition:transform .4s cubic-bezier(.6,0,.2,1);max-width:calc(100% - 40px)}
+.focusbar.show{transform:translate(-50%,0)}
+.fb-ico{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:11px;color:var(--acc,var(--green));background:color-mix(in srgb,var(--acc,var(--green)) 15%,transparent);border:1px solid color-mix(in srgb,var(--acc,var(--green)) 32%,transparent)}
+.fb-ico svg{width:20px;height:20px}
+.fb-tt{min-width:0}
+.fb-name{font-size:14px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.fb-role{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.fb-sep{width:1px;height:30px;background:var(--line-2)}
+
+.hero-hint{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);z-index:8;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);
+  display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);
+  border-radius:20px;padding:8px 16px;backdrop-filter:blur(8px);transition:opacity .3s}
+.hero-hint.hide{opacity:0;pointer-events:none}
+.hero-hint svg{width:14px;height:14px;color:var(--green)}
+
+@media (max-width:960px){
+  :root{--sidebar-w:300px}
+  .sidebar{position:absolute;inset:0 auto 0 0;box-shadow:var(--shadow)}
+  .legend{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="sidebar">
+    <div class="side-head">
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+        <defs>
+          <linearGradient id="gA" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#F4D96A"/><stop offset="1" stop-color="#D4A017"/>
+          </linearGradient>
+          <linearGradient id="gB" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#FBEEB0"/><stop offset="1" stop-color="#F0C53F"/>
+          </linearGradient>
+        </defs>
+        <g transform="rotate(-20 20 20)">
+          <path d="M15 5 C22 10 22 30 15 35 C8 30 8 10 15 5 Z" fill="url(#gA)"/>
+          <path d="M24 5 C31 10 31 30 24 35 C17 30 17 10 24 5 Z" fill="url(#gB)" opacity=".82"/>
+        </g>
+      </svg>
+      <div class="brand-txt">
+        <div class="brand-name">Mobility<span class="lens">Lens</span></div>
+        <div class="brand-sub">PIATTAFORMA · 4 LAYER</div>
+      </div>
+      <button class="collapse-btn" id="btnCollapse" title="Nascondi il menu">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+    </div>
+
+    <div class="side-body" id="sideBody"><!-- accordions injected by JS --></div>
+
+    <div class="side-foot">
+      <svg class="mk" viewBox="0 0 40 40" aria-hidden="true"><g transform="rotate(-20 20 20)"><path d="M15 5 C22 10 22 30 15 35 C8 30 8 10 15 5 Z" fill="url(#gA)"/><path d="M24 5 C31 10 31 30 24 35 C17 30 17 10 24 5 Z" fill="url(#gB)" opacity=".82"/></g></svg>
+      <span>by <b style="color:var(--ink-dim);font-weight:600">Basco&amp;T Consulting</b></span>
+    </div>
+  </aside>
+
+  <!-- ===================== STAGE ===================== -->
+  <main class="stage" id="stage">
+    <div class="stage-bg"></div>
+    <div class="stage-grid"></div>
+
+    <div class="topbar">
+      <div class="title-block">
+        <button class="open-nav" id="btnOpenNav" title="Mostra il menu">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <div>
+          <div class="eyebrow">Architettura della piattaforma</div>
+          <div class="h-title">Il modello a 4 layer</div>
+        </div>
+      </div>
+      <div class="legend">
+        <span class="lg"><i style="background:var(--green)"></i>Territorio</span>
+        <span class="lg"><i style="background:var(--gold)"></i>Progetti</span>
+        <span class="lg"><i style="background:var(--violet)"></i>Convergenza</span>
+      </div>
+    </div>
+
+    <!-- DIAGRAMMA SVG (viewBox animato per l'effetto zoom-camera) -->
+    <svg id="diagram" viewBox="0 0 1200 760" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="cardBg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#12241d"/><stop offset="1" stop-color="#0b1712"/>
+        </linearGradient>
+        <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="7" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <pattern id="micro" width="30" height="30" patternUnits="userSpaceOnUse">
+          <path d="M30 0H0V30" fill="none" stroke="rgba(120,165,145,.05)" stroke-width="1"/>
+        </pattern>
+        <marker id="ah-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3ee0a5"/></marker>
+        <marker id="ah-gold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f0c53f"/></marker>
+        <marker id="ah-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f2a24b"/></marker>
+        <marker id="ah-violet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9d8cf3"/></marker>
+      </defs>
+
+      <rect x="0" y="0" width="1200" height="760" fill="url(#micro)"/>
+
+      <!-- separatore tra i due lati -->
+      <line x1="478" y1="92" x2="478" y2="392" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 9"/>
+      <text class="lato-label" x="280" y="112" fill="#3ee0a5" font-size="13.5" text-anchor="middle" opacity=".92">Lato 1 · Territorio</text>
+      <text x="280" y="133" fill="#6f857b" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">urbanistica · paesaggio · costruibilità</text>
+      <text class="lato-label" x="876" y="112" fill="#f0c53f" font-size="13.5" text-anchor="middle" opacity=".92">Lato 2 · Progetti</text>
+      <text x="876" y="133" fill="#6f857b" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">reperimento · monitoraggio · correzione</text>
+
+      <!-- "molte fonti" che alimentano il RAG (funnel) -->
+      <g class="fonti">
+        <text x="558" y="207" fill="#c9a63a" font-size="10" text-anchor="middle" font-family="IBM Plex Mono" letter-spacing="2">MOLTE FONTI</text>
+        <text x="558" y="223" fill="#6f857b" font-size="8.5" text-anchor="middle" font-family="IBM Plex Mono">bandi · PNRR · appalti</text>
+        <circle cx="512" cy="240" r="4.5" fill="#f0c53f" opacity=".85"/>
+        <circle cx="512" cy="262" r="4.5" fill="#f0c53f" opacity=".85"/>
+        <circle cx="512" cy="284" r="4.5" fill="#f0c53f" opacity=".85"/>
+        <path class="flow" d="M519 240 C556 240 560 262 592 262" stroke="#f0c53f" opacity=".5"/>
+        <path class="flow" d="M519 262 H592" stroke="#f0c53f" opacity=".5"/>
+        <path class="flow" d="M519 284 C556 284 560 262 592 262" stroke="#f0c53f" opacity=".5"/>
+        <path class="flow" d="M592 262 H613" stroke="#f0c53f" marker-end="url(#ah-gold)"/>
+      </g>
+
+      <!-- connettori principali (aggiunti/gestiti anche via JS per il dimming) -->
+      <g id="links"></g>
+
+      <!-- nodi (iniettati via JS) -->
+      <g id="nodes"></g>
+    </svg>
+
+    <div class="hero-hint" id="heroHint">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11a3 3 0 106 0 3 3 0 00-6 0z"/><path d="M17.6 17.6L22 22"/><path d="M3 3l3 3"/></svg>
+      Clicca una forma o una voce del menu per esplorare il processore
+    </div>
+
+    <!-- barra azione contestuale sul focus -->
+    <div class="focusbar" id="focusbar">
+      <div class="fb-ico" id="fbIco"></div>
+      <div class="fb-tt">
+        <div class="fb-name" id="fbName">—</div>
+        <div class="fb-role" id="fbRole">—</div>
+      </div>
+      <div class="fb-sep"></div>
+      <button class="btn primary" id="fbAction">Apri</button>
+      <button class="btn ghost" id="fbBack">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        Panoramica
+      </button>
+    </div>
+  </main>
+</div>
+
+<script>
+/* =====================================================================
+   DATI DEI PROCESSORI (i 4 layer)
+   ===================================================================== */
+const NODES = [
+  {
+    id:"layer", side:"Lato 1 · Territorio", name:"Layer Processor",
+    role:"Urbanistica · paesaggio · costruibilità",
+    acc:"#3ee0a5", cx:280, cy:262, w:252, h:140, zoomW:600, num:"01",
+    status:"live", link:"http://localhost:3000",
+    icon:'<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/>',
+    desc:"Elabora i <b>dati territoriali</b>: urbanistica, paesaggio e costruibilità. Pipeline a stadi (<b>scopri → scarica → riconosci → componi</b>) che uniforma le fonti di tutta Italia e produce i layer tematici e il <b>semaforo di edificabilità</b> per comune e lotto.",
+    note:"Assicurati che il dashboard sia avviato: <code>python3 start_dashboard.py</code> (UI su :3000, API su :8765)."
+  },
+  {
+    id:"rag", side:"Lato 2 · Progetti", name:"RAG Multiagent",
+    role:"Reperimento progetti da molte fonti",
+    acc:"#f0c53f", cx:740, cy:262, w:248, h:140, zoomW:560, num:"02",
+    status:"soon", link:null,
+    icon:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>',
+    desc:"Reperisce i <b>progetti</b> incrociando <b>moltissime fonti</b> (bandi, PNRR, appalti, opere pubbliche). Sistema <b>multi-agente</b> che cerca, filtra e raccoglie i dati grezzi sui progetti dal territorio nazionale.",
+    note:"Modulo in sviluppo — non ancora collegato."
+  },
+  {
+    id:"project", side:"Lato 2 · Progetti", name:"Project Processor",
+    role:"Arricchimento e localizzazione",
+    acc:"#f2a24b", cx:1012, cy:262, w:248, h:140, zoomW:560, num:"03",
+    status:"soon", link:null,
+    icon:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/>',
+    desc:"Processa i progetti raccolti dal RAG: li <b>arricchisce di informazioni</b>, <b>corregge e aggiunge la localizzazione</b> geografica, normalizza e prepara i dati puliti per il consolidamento finale.",
+    note:"Modulo in sviluppo — non ancora collegato."
+  },
+  {
+    id:"database", side:"Convergenza", name:"Database Processor",
+    role:"Incrocia i due lati → Supabase",
+    acc:"#9d8cf3", cx:640, cy:520, w:320, h:148, zoomW:720, num:"04",
+    status:"soon", link:null,
+    icon:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0018 0V5"/><path d="M3 12a9 3 0 0018 0"/>',
+    desc:"Punto di <b>convergenza</b> del modello: raccoglie i dati da <b>entrambi i lati</b> (territorio + progetti), li <b>incrocia</b> e li carica su <b>Supabase</b>, unificando tutta la piattaforma in un'unica base dati.",
+    note:"Modulo in sviluppo — non ancora collegato."
+  }
+];
+
+/* connettori: from -> to (bordi dei nodi), colore = accento della sorgente */
+const LINKS = [
+  {from:"rag", to:"project", color:"#f0c53f", marker:"ah-gold"},
+  {from:"layer", to:"database", color:"#3ee0a5", marker:"ah-green"},
+  {from:"project", to:"database", color:"#f2a24b", marker:"ah-orange"},
+];
+
+const SVGNS="http://www.w3.org/2000/svg";
+const svg=document.getElementById('diagram');
+const gNodes=document.getElementById('nodes');
+const gLinks=document.getElementById('links');
+const byId=Object.fromEntries(NODES.map(n=>[n.id,n]));
+
+function el(tag,attrs={},...kids){
+  const e=document.createElementNS(SVGNS,tag);
+  for(const k in attrs) e.setAttribute(k,attrs[k]);
+  kids.forEach(c=>e.appendChild(typeof c==="string"?document.createTextNode(c):c));
+  return e;
+}
+
+/* ---------- disegno connettori ---------- */
+function edgePoint(n,dir){ // dir: 'bottom','top','left','right'
+  const x=n.cx,y=n.cy,hw=n.w/2,hh=n.h/2;
+  return {bottom:[x,y+hh],top:[x,y-hh],left:[x-hw,y],right:[x+hw,y]}[dir];
+}
+LINKS.forEach(l=>{
+  const a=byId[l.from], b=byId[l.to];
+  let p1,p2,d;
+  if(l.from==="rag"&&l.to==="project"){
+    p1=edgePoint(a,"right"); p2=edgePoint(b,"left");
+    d=`M${p1[0]} ${p1[1]} H${p2[0]}`;
+  } else { // convergenza verso database (dall'alto ai lati)
+    p1=edgePoint(a,"bottom"); p2=[b.cx+(l.from==="layer"?-90:90), b.cy-b.h/2];
+    const midY=(p1[1]+p2[1])/2;
+    d=`M${p1[0]} ${p1[1]} C${p1[0]} ${midY} ${p2[0]} ${p1[1]} ${p2[0]} ${p2[1]}`;
+  }
+  const path=el('path',{class:'flow',d,stroke:l.color,'marker-end':`url(#${l.marker})`,'data-link':`${l.from}-${l.to}`});
+  gLinks.appendChild(path);
+});
+/* database -> supabase (uscita) + endpoint Supabase */
+(function(){
+  const db=byId.database, p=edgePoint(db,"bottom");
+  const topY=p[1]+42;
+  gLinks.appendChild(el('path',{class:'flow',d:`M${p[0]} ${p[1]} V${topY-4}`,stroke:'#3ee0a5','marker-end':'url(#ah-green)'}));
+  // pill "Supabase" (destinazione finale, non un processore)
+  const g=el('g'); const px=p[0]-98, pw=196, ph=46;
+  g.appendChild(el('rect',{x:px,y:topY,width:pw,height:ph,rx:14,fill:'url(#cardBg)',stroke:'#3ee0a5','stroke-opacity':.5}));
+  const ico=el('g',{transform:`translate(${px+15},${topY+13})`,fill:'#3ee0a5',stroke:'none'});
+  ico.appendChild(el('path',{d:'M11 1 3 11h6l-1 8 8-11h-6l2-7z'}));
+  g.appendChild(ico);
+  g.appendChild(el('text',{x:px+44,y:topY+21,fill:'#3ee0a5','font-size':13,'font-weight':700,'letter-spacing':.5},'Supabase'));
+  g.appendChild(el('text',{x:px+44,y:topY+35,fill:'#7f958b','font-size':9.5,'font-family':'IBM Plex Mono'},'base dati unificata'));
+  gLinks.appendChild(g);
+})();
+
+/* ---------- disegno nodi ---------- */
+NODES.forEach(n=>{
+  const x=n.cx-n.w/2, y=n.cy-n.h/2, r=18;
+  const g=el('g',{class:'node','data-id':n.id});
+  const shell=el('g',{class:'node-shell'});
+
+  // alone accento
+  shell.appendChild(el('rect',{class:'plate',x,y,width:n.w,height:n.h,rx:r,fill:'none',
+    stroke:n.acc,'stroke-width':1.4,opacity:.9,filter:'url(#glow)'}));
+  // corpo card
+  shell.appendChild(el('rect',{x,y,width:n.w,height:n.h,rx:r,fill:'url(#cardBg)',stroke:n.acc,'stroke-width':1.4,'stroke-opacity':.55}));
+  // barra accento in alto
+  shell.appendChild(el('rect',{x:x+16,y:y-1,width:n.w-32,height:3,rx:1.5,fill:n.acc,opacity:.85}));
+
+  // icona
+  const ib=18;
+  const iconBox=el('g',{transform:`translate(${x+20},${y+20})`});
+  iconBox.appendChild(el('rect',{x:0,y:0,width:44,height:44,rx:12,fill:n.acc,'fill-opacity':.14,stroke:n.acc,'stroke-opacity':.4}));
+  const ic=el('g',{transform:'translate(10,10) scale(1.0)',fill:'none',stroke:n.acc,'stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round'});
+  ic.innerHTML=n.icon;
+  iconBox.appendChild(ic);
+  shell.appendChild(iconBox);
+
+  // testi
+  shell.appendChild(el('text',{x:x+78,y:y+31,fill:n.acc,'font-size':10,'font-family':'IBM Plex Mono','letter-spacing':2.2,opacity:.9},'LAYER '+n.num));
+  shell.appendChild(el('text',{class:'node-title',x:x+78,y:y+53,fill:'#f2f7f4','font-size':17},n.name));
+  shell.appendChild(el('text',{class:'node-role',x:x+22,y:y+n.h-34,fill:'#aebfb6','font-size':12},n.role));
+
+  // status chip
+  const chipG=el('g',{transform:`translate(${x+20},${y+n.h-24})`});
+  const live=n.status==="live";
+  const cw=live?86:112;
+  chipG.appendChild(el('rect',{x:0,y:0,width:cw,height:20,rx:10,fill:live?'rgba(62,224,165,.14)':'rgba(127,149,139,.12)',stroke:live?'rgba(62,224,165,.35)':'var(--line-2)'}));
+  chipG.appendChild(el('circle',{cx:12,cy:10,r:3.4,fill:live?'#3ee0a5':'#7f958b'}));
+  chipG.appendChild(el('text',{x:22,y:14,fill:live?'#3ee0a5':'#7f958b','font-size':9.5,'font-weight':700,'font-family':'IBM Plex Mono','letter-spacing':.5},live?"ATTIVO":"IN SVILUPPO"));
+  shell.appendChild(chipG);
+
+  // freccia "apri" (solo nodo attivo) nell'angolo, allineata al titolo
+  if(live){
+    const arr=el('g',{transform:`translate(${x+n.w-32},${y+18})`,fill:'none',stroke:n.acc,'stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round',opacity:.85});
+    arr.appendChild(el('path',{d:'M6 14L14 6M7 6h7v7'}));
+    shell.appendChild(arr);
+  }
+
+  g.appendChild(shell);
+  g.addEventListener('click',(e)=>{e.stopPropagation();selectNode(n.id);});
+  gNodes.appendChild(g);
+});
+
+/* =====================================================================
+   ZOOM-CAMERA (animazione del viewBox)
+   ===================================================================== */
+const VB={x:0,y:0,w:1200,h:760};
+let cur={...VB}, raf=null;
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const setVB=b=>svg.setAttribute('viewBox',`${b.x} ${b.y} ${b.w} ${b.h}`);
+function tween(target,dur=760){
+  cancelAnimationFrame(raf);
+  const from={...cur}, t0=performance.now();
+  (function step(now){
+    const p=Math.min(1,(now-t0)/dur), e=ease(p);
+    cur={x:from.x+(target.x-from.x)*e,y:from.y+(target.y-from.y)*e,
+         w:from.w+(target.w-from.w)*e,h:from.h+(target.h-from.h)*e};
+    setVB(cur);
+    if(p<1) raf=requestAnimationFrame(step);
+  })(performance.now());
+}
+function zoomTo(n){
+  const zw=n.zoomW||560, zh=zw*(VB.h/VB.w);
+  let x=n.cx-zw/2, y=n.cy-zh/2;
+  x=Math.max(-60,Math.min(x,VB.w-zw+60));
+  y=Math.max(-60,Math.min(y,VB.h-zh+60));
+  tween({x,y,w:zw,h:zh});
+}
+
+/* =====================================================================
+   SELEZIONE / STATO
+   ===================================================================== */
+let currentId=null;
+
+function setDim(activeId){
+  document.querySelectorAll('#nodes .node').forEach(g=>{
+    g.querySelector('.node-shell').classList.toggle('dimmed', activeId && g.dataset.id!==activeId);
+  });
+  gLinks.querySelectorAll('.flow').forEach(p=>p.classList.toggle('dim', !!activeId));
+}
+
+function selectNode(id){
+  const n=byId[id];
+  currentId=id;
+  zoomTo(n);
+  setDim(id);
+  openAcc(id,true);
+  showFocusbar(n);
+  document.getElementById('heroHint').classList.add('hide');
+  // scrolla la voce nel menu
+  const head=document.querySelector(`.acc[data-id="${id}"]`);
+  if(head) head.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function overview(){
+  currentId=null;
+  tween({...VB});
+  setDim(null);
+  closeAllAcc();
+  document.getElementById('focusbar').classList.remove('show');
+  document.getElementById('heroHint').classList.remove('hide');
+  document.querySelector('.acc[data-id="intro"]')?.classList.add('open');
+  syncAccBodies();
+}
+
+/* focusbar */
+const focusbar=document.getElementById('focusbar');
+function showFocusbar(n){
+  document.getElementById('fbName').textContent=n.name;
+  document.getElementById('fbRole').textContent=n.role;
+  const ico=document.getElementById('fbIco');
+  ico.style.setProperty('--acc',n.acc);
+  ico.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg>`;
+  const act=document.getElementById('fbAction');
+  if(n.status==="live"){
+    act.className="btn primary"; act.textContent="Apri Layer Processor";
+    act.onclick=()=>window.open(n.link,'_blank');
+  } else {
+    act.className="btn disabled"; act.textContent="In sviluppo";
+    act.onclick=null;
+  }
+  focusbar.classList.add('show');
+}
+
+/* =====================================================================
+   MENU LATERALE (accordion)
+   ===================================================================== */
+const sideBody=document.getElementById('sideBody');
+
+// voce intro
+const intro=document.createElement('div');
+intro.className='acc open'; intro.dataset.id='intro'; intro.style.setProperty('--acc','#3ee0a5');
+intro.innerHTML=`
+  <button class="acc-head" data-toggle>
+    <span class="acc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+    <span class="acc-tt"><span class="acc-kicker">Come funziona</span><span class="acc-name">Panoramica del modello</span></span>
+    <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+  <div class="acc-body"><div class="acc-body-inner">
+    <p class="acc-desc">La piattaforma <b>MobilityLens</b> lavora su <b>due lati</b> che convergono in un'unica base dati.</p>
+    <p class="acc-desc"><b style="color:var(--green)">Lato 1 — Territorio.</b> Il <b>Layer Processor</b> si occupa di urbanistica, paesaggio e costruibilità.</p>
+    <p class="acc-desc"><b style="color:var(--gold)">Lato 2 — Progetti.</b> Il <b>RAG Multiagent</b> reperisce i progetti da molte fonti; il <b>Project Processor</b> li arricchisce e li localizza.</p>
+    <p class="acc-desc"><b style="color:var(--violet)">Convergenza.</b> Il <b>Database Processor</b> incrocia i dati dei due lati e li carica su Supabase.</p>
+    <button class="btn ghost" data-overview>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      Vista panoramica
+    </button>
+  </div></div>`;
+sideBody.appendChild(intro);
+
+// caption + voci processori raggruppate per lato
+let lastSide=null;
+NODES.forEach(n=>{
+  if(n.side!==lastSide){
+    const cap=document.createElement('div');
+    cap.className='side-caption'; cap.textContent=n.side;
+    sideBody.appendChild(cap); lastSide=n.side;
+  }
+  const acc=document.createElement('div');
+  acc.className='acc'; acc.dataset.id=n.id; acc.style.setProperty('--acc',n.acc);
+  const live=n.status==="live";
+  acc.innerHTML=`
+    <button class="acc-head" data-toggle>
+      <span class="acc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg></span>
+      <span class="acc-tt">
+        <span class="acc-kicker">Layer · ${n.id}</span>
+        <span class="acc-name">${n.name}
+          <span class="chip ${live?'live':'soon'}"><span class="dot"></span>${live?'Attivo':'In sviluppo'}</span>
+        </span>
+      </span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="acc-body"><div class="acc-body-inner">
+      <p class="acc-desc">${n.desc}</p>
+      <div class="acc-actions">
+        ${live
+          ? `<a class="btn primary" href="${n.link}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/></svg>Apri dashboard</a>`
+          : `<span class="btn disabled">In sviluppo</span>`}
+        <button class="btn ghost" data-zoom><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>Mostra sul diagramma</button>
+      </div>
+      ${n.note?`<p class="hint">${n.note}</p>`:''}
+    </div></div>`;
+  sideBody.appendChild(acc);
+});
+
+/* apertura/chiusura accordion + animazione max-height */
+function syncAccBodies(){
+  document.querySelectorAll('.acc').forEach(a=>{
+    const body=a.querySelector('.acc-body');
+    body.style.maxHeight=a.classList.contains('open')?body.querySelector('.acc-body-inner').scrollHeight+'px':'0px';
+  });
+}
+function closeAllAcc(){document.querySelectorAll('.acc').forEach(a=>{a.classList.remove('open');a.classList.remove('active');});}
+function openAcc(id,markActive){
+  document.querySelectorAll('.acc').forEach(a=>{
+    const on=a.dataset.id===id;
+    a.classList.toggle('open',on);
+    a.classList.toggle('active',on&&markActive);
+  });
+  syncAccBodies();
+}
+
+/* wiring click nel menu */
+sideBody.addEventListener('click',e=>{
+  const head=e.target.closest('[data-toggle]');
+  const zoomBtn=e.target.closest('[data-zoom]');
+  const ovBtn=e.target.closest('[data-overview]');
+  if(ovBtn){overview();return;}
+  if(zoomBtn){const id=e.target.closest('.acc').dataset.id;selectNode(id);return;}
+  if(head){
+    const acc=e.target.closest('.acc'); const id=acc.dataset.id;
+    if(id==="intro"){
+      const willOpen=!acc.classList.contains('open');
+      closeAllAcc();
+      if(willOpen){acc.classList.add('open');overview();}
+      syncAccBodies();
+    } else {
+      if(acc.classList.contains('open')&&currentId===id){overview();}
+      else{selectNode(id);}
+    }
+  }
+});
+
+/* focusbar buttons */
+document.getElementById('fbBack').addEventListener('click',overview);
+
+/* click sul fondo del diagramma = panoramica */
+svg.addEventListener('click',overview);
+document.querySelector('.stage-bg').addEventListener('click',overview);
+
+/* collapse sidebar */
+const app=document.getElementById('app');
+document.getElementById('btnCollapse').addEventListener('click',()=>app.classList.add('nav-closed'));
+document.getElementById('btnOpenNav').addEventListener('click',()=>app.classList.remove('nav-closed'));
+
+/* tastiera: Esc = panoramica */
+window.addEventListener('keydown',e=>{if(e.key==="Escape")overview();});
+
+/* init */
+setVB(VB);
+syncAccBodies();
+window.addEventListener('resize',syncAccBodies);
+</script>
+</body>
+</html>
