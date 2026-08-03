@@ -395,6 +395,7 @@ def compact_source(row: dict[str, Any]) -> dict[str, Any]:
         "http_download": "file (zip/csv/xlsx)",
         "html_resources": "CSV/ZIP da pagina",
         "istat_sdmx": "SDMX-CSV",
+        "sparql_source": "GeoJSON da SPARQL",
     }
     executable_adapters = set(formats)
     is_executable = adapter in executable_adapters and row.get("status") == "active"

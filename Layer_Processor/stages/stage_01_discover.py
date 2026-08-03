@@ -30,6 +30,7 @@ from lib import (
     http_download,
     istat_sdmx,
     liguria_geoportal,
+    sparql_source,
     local_spatial,
     piemonte_catalog,
     socrata,
@@ -89,6 +90,8 @@ def run(
         return html_resources.discover(source, status_source, work_dir, progress)
     if source.get("adapter") == "istat_sdmx":
         return istat_sdmx.discover(source, status_source, work_dir, progress)
+    if source.get("adapter") == "sparql_source":
+        return sparql_source.discover(source, status_source, work_dir, progress)
     raise NotImplementedError(
         f"stage_01_discover: adapter non implementato: {source.get('adapter') or source.get('kind')}"
     )

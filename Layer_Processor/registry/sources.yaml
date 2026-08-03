@@ -1917,16 +1917,34 @@ sources:
     livello: nazionale
     ente: "MIC — Cultura ON (luoghi ed eventi della cultura)"
     kind: rdf_sparql
-    adapter: null
-    proposed_adapter: cultura_gov
+    adapter: sparql_source
     url: "https://dati.cultura.gov.it/cultural_on/"
+    sparql_endpoint: "https://dati.cultura.gov.it/sparql"
+    license: "CC BY-SA 4.0"
+    attribution: "Ministero della Cultura — dati.cultura.gov.it"
     topic: culturalHeritage
     plan_types: [stato]
     feeds_target: PUNTI_INTERESSE   # luoghi della cultura (musei, biblioteche, ...)
-    status: todo
+    sparql_datasets:
+      - key: luoghi_cultura
+        title: "Luoghi della cultura geolocalizzati (dati.cultura.gov.it)"
+        query: |
+          PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+          PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+          SELECT ?s ?nome ?lat ?long WHERE {
+            ?s geo:lat ?lat ; geo:long ?long .
+            OPTIONAL { ?s rdfs:label ?nome }
+          }
+        lat_var: lat
+        lon_var: long
+        page_size: 10000
+        max_rows: 300000
+    status: active
     notes: >
-      Cultural_ON: dati su luoghi ed eventi della cultura (musei, biblioteche,
-      archivi, ...). Alimenta PUNTI_INTERESSE.
+      Cultural_ON / dati.cultura.gov.it: luoghi della cultura geolocalizzati (musei,
+      biblioteche, archivi, ...). Adapter sparql_source: query sull'endpoint SPARQL
+      pubblico (geo:lat/geo:long) paginata → GeoJSON di punti. Alimenta PUNTI_INTERESSE.
+      (Endpoint e predicati verificati via probe.)
 
   - key: n_istat_censimento_sezioni
     livello: nazionale

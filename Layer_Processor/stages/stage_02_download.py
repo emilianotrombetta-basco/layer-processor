@@ -27,6 +27,7 @@ from lib import (
     csv_direct,
     emilia_romagna_moka,
     http_download,
+    sparql_source,
     liguria_geoportal,
     local_spatial,
     piemonte_catalog,
@@ -203,6 +204,15 @@ def run(
     if source.get("adapter") in {"http_download", "html_resources", "istat_sdmx"}:
         # html_resources/istat_sdmx producono lo stesso manifest di http_download.
         return http_download.download(
+            manifest_path,
+            raw_dir,
+            dry_run=dry_run,
+            refresh=refresh,
+            progress=progress,
+            call_event=call_event,
+        )
+    if source.get("adapter") == "sparql_source":
+        return sparql_source.download(
             manifest_path,
             raw_dir,
             dry_run=dry_run,
