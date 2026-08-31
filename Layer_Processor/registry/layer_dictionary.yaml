@@ -728,3 +728,177 @@ rules:
     any: ["classi sism", "nodi sism", "classificazione sismica"]
     confidence: high
     examples: ["CLASSI_SISM_DM1982", "CLASSI_SISM_OPCM3274", "NODI_SISM_DM2008"]
+
+  # ---- Nomenclature italiane standard (topic-agnostic) ----------------------
+  # Molti geoportali regionali (Basilicata, Lazio, Sardegna) pubblicano tutto
+  # come planningCadastre. Queste regole usano keyword specifiche senza
+  # topic_in per non richiedere un topic particolare.
+
+  - canonical: DISSESTO_GEOLOGICO
+    any: ["classificazione frane", "carta geolitologica", "geolitologica",
+          "litologia", "iffi", "pericolosita geologica", "pericolosita geomorfologica",
+          "pericolosita da frana", "pericolosita molto elevata", "pericolosita elevata",
+          "pericolosita media", "pericolosita bassa",
+          "p1 pericolosita", "p2 pericolosita", "p3 pericolosita", "p4 pericolosita",
+          "inventario fenomeni franosi", "aree in frana", "incendi",
+          "sintesi finale pericolosita"]
+    not_any: ["idraulica", "alluvion"]
+    confidence: high
+    examples: ["Classificazione frane", "Carta Geolitologica", "Iffi",
+               "P1 - Pericolosita bassa", "P3 - Pericolosita elevata",
+               "L5_sintesi_finale_pericolosita", "incendi"]
+
+  - canonical: RISCHIO_IDRAULICO
+    any: ["pericolosita idraulica", "rischio alluvioni", "pai alluvioni",
+          "danno basso", "danno medio", "danno elevato", "danno molto elevato",
+          "danno potenziale", "elementi a rischio",
+          "rischio moderato", "rischio medio", "rischio elevato", "rischio molto elevato",
+          "r1 aree", "r2 aree", "r3 aree", "r4 aree",
+          "d1 danno", "d2 danno", "d3 danno", "d4 danno",
+          "tr = 30", "tr = 200", "tr = 500",
+          "tempo di ritorno", "ambiti fluviali"]
+    confidence: high
+    examples: ["Pericolosita Idraulica", "PAI alluvioni", "D1 - Danno basso",
+               "R4 - aree/elementi a rischio molto elevato", "Tr = 200 anni",
+               "L3_ambiti_fluviali_idraulici"]
+
+  - canonical: VINCOLI_PAESAGGISTICI
+    any: ["notevole interesse pubblico", "interesse archeologico",
+          "beni interesse archeologico", "monumentali",
+          "territori costieri", "let. a", "let. c", "let. g", "let. m",
+          "ope legis", "art142", "art 142", "art. 142", "art136", "art. 136",
+          "buffer 150", "buffer 300"]
+    confidence: high
+    examples: ["Aree di notevole interesse pubblico", "Zone di interesse archeologico ope legis",
+               "Territori costieri (buffer 300 m) - let.A", "Monumentali"]
+
+  - canonical: AGRICOLTURA
+    any: ["carta forestale", "carta uso del suolo", "uso suolo",
+          "bosco", "corine", "copertura del suolo", "land cover"]
+    confidence: medium
+    examples: ["Carta Forestale", "Carta Uso del Suolo", "corine", "bosco",
+               "uso_suolo_basilicata"]
+
+  - canonical: AREE_PROTETTE
+    any: ["foreste e boschi", "rete natura", "natura 2000", "sic", "zps",
+          "zsc", "siti importanza comunitaria"]
+    not_any: ["sistema forestale"]
+    confidence: high
+    examples: ["Rete Natura 2000", "Foreste e boschi - let. g"]
+
+  - canonical: PRG_EDIFICI_STORICI
+    any: ["edificato"]
+    confidence: medium
+    examples: ["Edificato"]
+
+  - canonical: VIABILITA
+    any: ["ponti viadotti", "cavalcavia", "galleria", "muro di sostegno",
+          "sentiero", "strade comunali", "strade provinciali"]
+    confidence: medium
+    examples: ["Ponti, viadotti, cavalcavia", "Galleria", "sentiero_710"]
+
+  - canonical: ENERGIA
+    any: ["rete elettrica", "rete gas", "elettrodotto", "metanodotto",
+          "gasdotto"]
+    confidence: high
+    examples: ["Rete elettrica", "Rete gas"]
+
+  - canonical: FERROVIA
+    any: ["rete ferroviaria", "ferrovia", "linea ferroviaria"]
+    confidence: high
+    examples: ["Rete ferroviaria"]
+
+  - canonical: ACQUE
+    any: ["rete approvvigionamento idrico", "acquedotto", "depuratore",
+          "fognatura", "rete idrica", "reticolo idrografico"]
+    confidence: medium
+    examples: ["Rete approvvigionamento idrico", "Reticolo Idrografico"]
+
+  - canonical: PRG_ZONING
+    any: ["regolamento edilizio", "piano regolatore", "zonizzazione urbanistica",
+          "destinazione d uso", "norme tecniche di attuazione"]
+    confidence: medium
+    examples: ["Regolamento edilizio"]
+
+  # ---- Lazio PTPR / PTP / DBGT / carte geologiche ---------------------------
+  - canonical: VINCOLI_PAESAGGISTICI
+    any: ["ptpr", "piano territoriale paesistico",
+          "ptp 15 12", "ptp_15_12",
+          "aree tutela dm", "aree di visuale", "paesaggi dgr",
+          "usi civici", "borghi identitari", "rurali identitari",
+          "agro identitario"]
+    not_any: ["acque pubbliche", "boschi", "zone umide", "aree naturali protette",
+              "aree urbanizzate", "quadro unione"]
+    confidence: high
+    examples: ["PTPR - Tavola A - Aree tutela DM", "PTPR - Tavola B - Usi civici",
+               "PTP_15_12_vincoli_1089", "verificato_Paesaggi_DGR_228"]
+
+  - canonical: VINCOLI_PAESAGGISTICI
+    any: ["decreti archeologici", "aree archeologiche", "punti archeologici",
+          "linee archeologiche", "catacomb", "fascia di rispetto",
+          "beni articolo 134", "vincoli 1089", "vincoli 431",
+          "vincoli ex 1497", "elemento isolato archeogico",
+          "elemento isolato medievale", "patrimonio castellano"]
+    confidence: high
+    examples: ["PTPR - Tavola B - Decreti archeologici", "PTP_15_12_aree_catacombali"]
+
+  - canonical: AREE_PROTETTE
+    any: ["ptpr tavola b boschi", "ptpr tavola b aree naturali",
+          "ptpr tavola b zone umide", "ptpr tavola b costa",
+          "ptpr tavola b altimetria",
+          "formazioni naturali e seminaturali",
+          "important birds area", "iba", "ipa",
+          "important plants area", "ramsar", "zone ramsar",
+          "habitat costieri"]
+    confidence: high
+    examples: ["PTPR - Tavola B - Boschi", "PTPR - Tavola B - Aree naturali protette",
+               "Important Birds Areas (IBA)", "Zone Ramsar"]
+
+  - canonical: DISSESTO_GEOLOGICO
+    any: ["carta geologica", "carta geologico tecnica",
+          "microzonazione sismica", "deformazioni del suolo",
+          "rischio frana", "instabilita di versante",
+          "siti geologici", "tettonica",
+          "basi geologiche", "carbonatico", "naturale vocazione"]
+    confidence: high
+    examples: ["Carta Geologica 1:25.000", "Microzonazione Sismica Liv. 1",
+               "CIG - Rischio frana", "AOI - Deformazioni del suolo"]
+
+  - canonical: ACQUE
+    any: ["carta idrogeologica", "complessi idrogeologici",
+          "stato chimico acque", "stato ecologico acque",
+          "stato chimico fiumi", "stato chimico laghi",
+          "stato ecologico fiumi", "stato ecologico laghi",
+          "stato quantitativo", "batimetria",
+          "acque pubbliche", "acque reflue",
+          "contratti di fiume", "groundwaterbody", "surfacewaterbody"]
+    confidence: medium
+    examples: ["Carta idrogeologica - Unità idrogeologiche",
+               "PTPR - Tavola B - Acque pubbliche", "Stato Chimico Fiumi"]
+
+  - canonical: VIABILITA
+    any: ["viabilita mista", "dbgt viabilita",
+          "cammino naturale", "cammino di san", "via francigena",
+          "via amerina", "rcl cammino", "rcl via",
+          "circolazione ciclabile", "area di circolazione"]
+    confidence: medium
+    examples: ["DBGT v. 2014 - Classe Viabilità mista secondaria",
+               "RCL Via Francigena", "RCL Cammino di San Francesco"]
+
+  - canonical: SERVIZI_CULTURA_SPORT
+    any: ["cinema e teatri", "impiantistica sportiva",
+          "pronti sport", "sport in movimento", "sport senza barriere"]
+    confidence: medium
+    examples: ["Cinema e teatri", "Pronti Sport Via"]
+
+  - canonical: ENERGIA
+    any: ["geotermia", "concessioni geotermia"]
+    confidence: medium
+    examples: ["Geotermia - Concessioni e Permessi"]
+
+  - canonical: AGRICOLTURA
+    any: ["carta dei suoli", "osservazioni dei suoli",
+          "prodotti dop", "prodotti igp", "vini doc", "vini docg", "vini igt",
+          "fasce frangivento", "distretti biologici"]
+    confidence: medium
+    examples: ["Carta dei Suoli del Lazio", "Prodotti DOP Regione Lazio"]

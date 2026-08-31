@@ -726,93 +726,6 @@ def _csv_row_count(path: Path) -> int:
         return 0
 
 
-_PUBLISHER_ALIASES = {
-    "mim": "MIUR", "miur": "MIUR", "mit": "MIT", "istat": "ISTAT",
-    "ispra": "ISPRA", "mef": "MEF", "mic": "MIC — Cultura",
-    "iccd-mic": "MIC — Cultura", "agcom": "AGCOM", "anac": "ANAC",
-    "aci": "ACI", "mimit": "MIMIT",
-    "ministero della salute": "Ministero della Salute",
-    "agenzia delle entrate": "Agenzia delle Entrate",
-    "ministero del lavoro e delle politiche sociali": "Ministero del Lavoro",
-    "ministero del lavoro": "Ministero del Lavoro",
-    "piattaforma unica nazionale": "PUN — Ricarica elettrica",
-    "humanitarian openstreetmap team": "OpenStreetMap / HOTOSM",
-}
-
-
-def _publisher(source: dict[str, Any]) -> str:
-    """Ente editore di una fonte, ricavato da `ente` (testo prima del trattino
-    lungo). I portali .gov generici senza editore chiaro → 'OpenData Governo'."""
-    ente = str(source.get("ente") or "").strip()
-    head = re.split(r"\s[—–]\s", ente, maxsplit=1)[0].strip()
-    head = re.split(r"\s*\(", head, maxsplit=1)[0].strip()        # via "(MIUR)"
-    head = re.split(r"\s*[/+]\s*", head, maxsplit=1)[0].strip()   # "AE + ISTAT" → AE
-    low = head.lower()
-    if low in _PUBLISHER_ALIASES:
-        return _PUBLISHER_ALIASES[low]
-    if low.startswith("istat"):          # "ISTAT Demografia" → ISTAT
-        return "ISTAT"
-    if not head or low.startswith("database") or "dati.gov.it" in ente.lower():
-        return "OpenData Governo"
-    return head
-
-
-def sources_catalog() -> dict[str, Any]:
-    """Tutte le fonti raggruppate per ENTE EDITORE (categoria): molte voci sono
-    dataset dello stesso ente (MIT, ISTAT, ISPRA…). Ogni categoria è collassabile
-    e contiene i dataset con i rispettivi link. Alimenta la sezione 'Fonti'."""
-    srcs = sources_config().get("sources", [])
-    groups: dict[str, dict[str, Any]] = {}
-    for row in srcs:
-        compact = compact_source(row)
-        publisher = _publisher(row)
-        key = re.sub(r"[^a-z0-9]+", "-", publisher.lower()).strip("-") or "altro"
-        livello = str(row.get("livello") or "regione")
-        group = groups.setdefault(key, {
-            "key": key, "name": publisher, "livelli": set(),
-            "icon_url": None, "sources": [],
-        })
-        group["livelli"].add(livello)
-        if not group["icon_url"] and row.get("url"):
-            group["icon_url"] = row.get("url")
-        group["sources"].append({
-            **compact,
-            "region": row.get("region"),
-            "region_istat": row.get("region_istat"),
-            "livello": livello,
-            "feeds_target": row.get("feeds_target"),
-            "managed_by": row.get("managed_by"),
-            "proposed_adapter": row.get("proposed_adapter"),
-        })
-
-    for group in groups.values():
-        group["sources"].sort(key=lambda s: (
-            0 if s.get("download_available") else 1, str(s.get("key")),
-        ))
-        group["total"] = len(group["sources"])
-        group["downloadable"] = sum(
-            1 for s in group["sources"] if s.get("download_available")
-        )
-        group["livello"] = "nazionale" if "nazionale" in group["livelli"] else "regione"
-        group.pop("livelli", None)
-
-    def _sort(group: dict[str, Any]) -> tuple[int, int, str]:
-        # Nazionali prima, poi per numero di dataset (i "ripetuti" in alto), poi nome.
-        return (
-            0 if group["livello"] == "nazionale" else 1,
-            -group["total"],
-            group["name"].lower(),
-        )
-
-    ordered = sorted(groups.values(), key=_sort)
-    return {
-        "groups": ordered,
-        "total_sources": sum(group["total"] for group in ordered),
-        "downloadable_sources": sum(group["downloadable"] for group in ordered),
-        "categories": len(ordered),
-    }
-
-
 def source_check(key: str) -> dict[str, Any]:
     """Controllo disponibilità di UNA fonte (portale + endpoint dati)."""
     source = _source_by_key(key)
@@ -1030,6 +943,59 @@ def region_pipeline_progress(region_key: str) -> dict[str, Any]:
         "completed_steps": completed,
         "total_steps": 5,
         "steps": steps,
+    }
+
+
+def coverage_matrix_payload() -> dict[str, Any]:
+    """Matrice target × regione con feature count per cella."""
+    region_names = {
+        "01": "Piemonte", "02": "Valle d'Aosta", "03": "Lombardia",
+        "04": "Trentino-Alto Adige", "05": "Veneto", "06": "Friuli Venezia Giulia",
+        "07": "Liguria", "08": "Emilia-Romagna", "09": "Toscana", "10": "Umbria",
+        "11": "Marche", "12": "Lazio", "13": "Abruzzo", "14": "Molise",
+        "15": "Campania", "16": "Puglia", "17": "Basilicata", "18": "Calabria",
+        "19": "Sicilia", "20": "Sardegna",
+    }
+    regions = sorted(region_names.keys())
+    if not OUT.exists():
+        return {"regions": regions, "region_names": region_names, "targets": [], "matrix": {}}
+    targets = sorted(d.name for d in OUT.iterdir() if d.is_dir())
+    matrix: dict[str, dict[str, int | None]] = {}
+    for target in targets:
+        row: dict[str, int | None] = {}
+        for rk in regions:
+            manifest = OUT / target / f"{rk}.manifest.json"
+            if manifest.exists():
+                m = read_json(manifest, {})
+                row[rk] = int(m.get("features", 0) or 0)
+            else:
+                row[rk] = None
+        matrix[target] = row
+    totals_by_target = {
+        t: sum(v for v in row.values() if v is not None)
+        for t, row in matrix.items()
+    }
+    coverage_by_target = {
+        t: sum(1 for v in row.values() if v is not None and v > 0)
+        for t, row in matrix.items()
+    }
+    totals_by_region = {
+        rk: sum(
+            matrix[t].get(rk, 0) or 0
+            for t in targets
+            if matrix[t].get(rk) is not None
+        )
+        for rk in regions
+    }
+    return {
+        "regions": regions,
+        "region_names": region_names,
+        "targets": targets,
+        "matrix": matrix,
+        "totals_by_target": totals_by_target,
+        "coverage_by_target": coverage_by_target,
+        "totals_by_region": totals_by_region,
+        "total_features": sum(totals_by_target.values()),
     }
 
 
@@ -2255,8 +2221,6 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(sources_payload(scope))
             elif path == "/api/sources/health":
                 self._json(sources_health())
-            elif path == "/api/sources/catalog":
-                self._json(sources_catalog())
             elif path == "/api/sources/check":
                 self._json(source_check(query.get("key", [""])[0]))
             elif path == "/api/provenance":
@@ -2265,6 +2229,8 @@ class Handler(BaseHTTPRequestHandler):
                     {"level": query.get("level", ["region"])[0],
                      "key": query.get("key", [""])[0]},
                 ))
+            elif path == "/api/coverage-matrix":
+                self._json(coverage_matrix_payload())
             elif path == "/api/health":
                 self._json({"ok": True, "local": True, "version": 2})
             elif path == "/api/final-layers":

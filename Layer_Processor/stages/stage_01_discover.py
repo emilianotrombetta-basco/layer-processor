@@ -24,6 +24,7 @@ from lib import (
     arcgis_rest,
     ckan_collection,
     ckan_mit,
+    cruscotto,
     csv_direct,
     emilia_romagna_moka,
     html_resources,
@@ -92,6 +93,8 @@ def run(
         return istat_sdmx.discover(source, status_source, work_dir, progress)
     if source.get("adapter") == "sparql_source":
         return sparql_source.discover(source, status_source, work_dir, progress)
+    if source.get("adapter") == "cruscotto":
+        return cruscotto.discover(source, status_source, work_dir, progress)
     raise NotImplementedError(
         f"stage_01_discover: adapter non implementato: {source.get('adapter') or source.get('kind')}"
     )

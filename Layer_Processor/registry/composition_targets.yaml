@@ -299,7 +299,13 @@ targets:
     plan_type: stato
     geometry: polygon
     sources: [DEMOGRAFIA]
-    expresses: "Popolazione, densità e composizione sociale per zona statistica/comune."
+    expresses: >
+      Popolazione, densità e composizione sociale per comune.
+      Censimento permanente ISTAT 2023 (sezioni aggregate a comune) +
+      Basi Territoriali 2021 + Variabili censuarie 2023 (cruscotto):
+      abitazioni occupate/vuote, stranieri (UE/extra-UE), occupazione
+      (15-64, genere), istruzione (laureati), famiglie unipersonali,
+      indice vecchiaia/dipendenza, densità, IRPEF (se disponibile).
 
   ENERGIA_RETI:
     title: "Energia e reti"
@@ -319,14 +325,33 @@ targets:
     title: "Beni culturali"
     block: 3
     plan_type: stato
-    geometry: point
-    scale: {overview: comune, detail: punto}
+    geometry: municipality_polygon
+    scale: {overview: comune, detail: comune}
     sources: [BENE_CULTURALE, VINCOLO_CULTURALE]
     expresses: >
-      Patrimonio culturale (ArCo/ICCD + Cultura dataset locali): schede
-      catalografiche e vincoli. Punti e, dove disponibili, perimetri di tutela.
-    classes: [architettonico, archeologico, storico_artistico, vincolo]
-    planned: true
+      Patrimonio culturale per comune (ArCo/ICCD Knowledge Graph, 215.800 beni):
+      conteggio per tipo (architettonico, archeologico, storico-artistico,
+      demoetnoantropologico, mobili). Join per nome comune.
+    classes: [architettonico, archeologico, storico_artistico, demoetnoantropologico, mobili]
+    arco_source:
+      source_ente: n_arco_beni_culturali
+      dataset_key: beni_per_comune
+      source_uuid: "n_arco_beni_culturali:beni_per_comune"
+      source_title: "ArCo — Knowledge Graph del patrimonio culturale italiano (ICCD/MIC)"
+      source_url: "http://wit.istc.cnr.it/arco/#dati"
+      license: "CC BY-SA 4.0"
+      attribution: "Ministero della Cultura — ArCo / ICCD / CNR-ISTC"
+      type_map:
+        HistoricOrArtisticProperty: storico_artistico
+        ArchaeologicalProperty: archeologico
+        ArchitecturalOrLandscapeHeritage: architettonico
+        DemoEthnoAnthropologicalHeritage: demoetnoantropologico
+        MovableCulturalProperty: mobili
+        NaturalHeritage: naturalistico
+        NumismaticProperty: numismatico
+        PhotographicHeritage: fotografico
+        MusicHeritage: musicale
+        ScientificOrTechnologicalHeritage: scientifico_tecnologico
 
   CONNETTIVITA_DIGITALE:
     title: "Connettività digitale"
@@ -339,7 +364,19 @@ targets:
       Copertura a banda larga/ultralarga per comune (AGCOM): tecnologie e
       velocità disponibili, divario digitale.
     classes: [banda_ultralarga, banda_larga, digital_divide]
-    planned: true
+    tabular:
+      source_ente: n_agcom_connettivita
+      file: AGCOM_connettivita_comuni.csv
+      code_column: pro_com
+      code_zfill: 6
+      sep: ";"
+      drop_columns: [Regione, Provincia, Comune]
+      source_uuid: "n_agcom_connettivita:consistenze_comuni"
+      source_title: "AGCOM — Broadband Map: consistenze rete cablata (dati comunali)"
+      source_url: "https://geo.agcom.it/reportistica/"
+      license: "AGCOM — Broadband Map"
+      attribution: "AGCOM — Broadband Map (art. 22 CCE)"
+      class: banda_ultralarga
 
   TRASPARENZA_APPALTI:
     title: "Trasparenza e appalti"
@@ -349,10 +386,10 @@ targets:
     scale: {overview: comune, detail: comune}
     sources: [APPALTO_PUBBLICO, FLUSSO_CASSA_ENTE]
     expresses: >
-      Appalti pubblici (ANAC/OCDS) e movimenti di cassa degli enti (SIOPE)
-      aggregati per comune/stazione appaltante.
+      Contratti pubblici OCDS (ANAC BDNCP) con top 5 categorie merceologiche
+      CPV e opere pubbliche BDAP con finanziamenti per fonte (statali, europei,
+      enti territoriali, privati) e top settori. 78% comuni con ANAC, 99% con BDAP.
     classes: [appalto, cassa]
-    planned: true
 
   TURISMO_RICETTIVITA:
     title: "Turismo e ricettività"
@@ -362,10 +399,22 @@ targets:
     scale: {overview: comune, detail: comune}
     sources: [STRUTTURA_RICETTIVA]
     expresses: >
-      Capacità e movimento delle strutture ricettive per comune (ISTAT):
-      posti letto, arrivi, presenze, alberghiero ed extra-alberghiero.
+      Capacità ricettiva per comune (ISTAT via Cruscotto Italia):
+      strutture, letti, camere, indice di turisticità.
     classes: [alberghiero, extra_alberghiero]
-    planned: true
+    tabular:
+      source_ente: n_cruscotto_italia
+      file: cruscotto_turismo.csv
+      code_column: codice_istat
+      code_zfill: 6
+      sep: ","
+      drop_columns: []
+      source_uuid: "n_cruscotto_italia:cruscotto_turismo"
+      source_title: "Cruscotto Italia — ISTAT capacità esercizi ricettivi per comune"
+      source_url: "https://cruscotto-italia.dati.gov.it"
+      license: "IODL 2.0"
+      attribution: "Cruscotto Italia — dati.gov.it (PCM-DTD) / ISTAT"
+      class: alberghiero
 
   AMBIENTE_RIFIUTI:
     title: "Ambiente — rifiuti"
@@ -378,7 +427,91 @@ targets:
       Produzione e gestione dei rifiuti urbani per comune (ISPRA catasto
       rifiuti): raccolta totale e differenziata.
     classes: [rifiuti_urbani, raccolta_differenziata]
-    planned: true
+    tabular:
+      source_ente: n_ispra_rifiuti
+      file: rifiuti_comunali_2024.csv
+      code_column: IstatComune
+      code_zfill: 6
+      code_right: 6
+      sep: ";"
+      skip_header_rows: 1
+      drop_columns: [Regione, Provincia, Comune, Popolazione, "Dato riferito a"]
+      source_uuid: "n_ispra_rifiuti:rifiuti_comunali_2024"
+      source_title: "ISPRA — Catasto rifiuti: produzione e raccolta differenziata comunale 2024"
+      source_url: "https://www.catasto-rifiuti.isprambiente.it/"
+      license: "ISPRA — Catasto rifiuti open data"
+      attribution: "ISPRA — Catasto Nazionale dei Rifiuti"
+      class: rifiuti_urbani
+
+  CONSUMO_SUOLO:
+    title: "Consumo di suolo"
+    block: 3
+    plan_type: stato
+    geometry: municipality_polygon
+    scale: {overview: comune, detail: comune}
+    sources: [LAND_TAKE]
+    expresses: >
+      Consumo di suolo per comune (ISPRA): incremento netto, lordo e ripristino
+      dal 2006 al 2024, serie storica biennale.
+    classes: [consumo_suolo, land_take]
+    tabular:
+      source_ente: n_ispra_suolo
+      file: consumo_suolo_2006_2024.xlsx
+      sheet: "Comuni_2006_2024"
+      code_column: PRO_COM
+      code_zfill: 6
+      drop_columns: [Nome_Comune, Nome_Regione, Nome_Provincia]
+      source_uuid: "n_ispra_suolo:consumo_suolo_2006_2024"
+      source_title: "ISPRA — Consumo di suolo, dinamiche territoriali e servizi ecosistemici"
+      source_url: "https://www.isprambiente.gov.it/it/attivita/suolo-e-territorio/suolo/il-consumo-di-suolo"
+      license: "ISPRA — dati ambientali open data"
+      attribution: "ISPRA — Rapporto sul consumo di suolo 2024"
+      class: consumo_suolo
+
+  CATASTO_PARTICELLE:
+    title: "Catasto particelle"
+    block: 1
+    plan_type: stato
+    geometry: municipality_polygon
+    scale: {overview: comune, detail: comune}
+    sources: [CATASTO_PARTICELLA, CATASTO_FOGLIO]
+    expresses: >
+      Copertura catastale INSPIRE (Agenzia delle Entrate) per comune:
+      conteggio fogli e particelle presenti nei dati INSPIRE locali (ITALIA/).
+      19 regioni su 20 (manca la Provincia Autonoma TN-AA = tavolare).
+    classes: [catasto_foglio, catasto_particella]
+    catasto_source:
+      source_uuid: "catasto_inspire:fogli_particelle"
+      source_title: "Agenzia delle Entrate — Cartografia catastale INSPIRE"
+      source_url: "https://www.agenziaentrate.gov.it/portale/web/guest/schede/fabbricatiterreni/consultazione-cartografia-catastale"
+      license: "CC BY 4.0"
+      attribution: "Agenzia delle Entrate — Cartografia catastale INSPIRE"
+
+  TOPONOMASTICA_CIVICI:
+    title: "Toponomastica e civici"
+    block: 3
+    plan_type: stato
+    geometry: municipality_polygon
+    scale: {overview: comune, detail: comune}
+    sources: [CIVICO, STRADA]
+    expresses: >
+      Toponomastica nazionale ANNCSU (Agenzia Entrate + ISTAT): numero di
+      strade e civici conferiti per comune, percentuale georeferenziati.
+      Snapshot agosto 2026. High Value Dataset (Reg. UE 2023/138).
+    classes: [civico, strada]
+    tabular:
+      source_ente: n_cruscotto_italia
+      file: cruscotto_anncsu_civici.csv
+      code_column: pro_com
+      code_zfill: 6
+      sep: ","
+      drop_columns: []
+      source_uuid: "n_cruscotto_italia:cruscotto_anncsu"
+      source_title: "ANNCSU — Archivio Nazionale Numeri Civici e Strade Urbane"
+      source_url: "https://anncsu.open.agenziaentrate.gov.it/"
+      license: "CC BY 4.0 (High Value Dataset)"
+      attribution: "ANNCSU — Agenzia delle Entrate + ISTAT (DPCM 12/05/2016)"
+      class: civico
 
 quality_gates:
   - "nessun GREEN se la copertura delle fonti obbligatorie non è completa"

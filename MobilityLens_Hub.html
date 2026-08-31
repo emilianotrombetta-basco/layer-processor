@@ -3,17 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MobilityLens · Piattaforma</title>
+<title>MobilityLens · Pipeline Operativa</title>
 <meta name="theme-color" content="#081310">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   MobilityLens · Hub piattaforma (4 layer)
-   Interfaccia iniziale: diagramma di flusso interattivo con
-   zoom-camera sui processori + menu laterale a scomparsa.
-   File autosufficiente (nessuna dipendenza oltre ai font).
+   MobilityLens · Hub — Pipeline Operativa
+   Diagramma di flusso interattivo con zoom-camera sui
+   processori + menu laterale a scomparsa. File autosufficiente.
    ============================================================ */
 :root{
   --bg:#081310; --bg2:#0a1a15; --bg3:#05100c;
@@ -22,7 +21,7 @@
   --line:rgba(120,165,145,.16); --line-2:rgba(120,165,145,.28);
   --green:#3ee0a5; --green-deep:#12b37e;
   --gold:#f0c53f; --gold-deep:#d4a017;
-  --orange:#f2a24b; --violet:#9d8cf3; --blue:#5bb2e6;
+  --orange:#f2903f; --cyan:#43c6e6; --violet:#9d8cf3; --blue:#5bb2e6;
   --shadow:0 24px 60px rgba(0,0,0,.45);
   --sidebar-w:392px;
 }
@@ -77,7 +76,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .acc-ico svg{width:20px;height:20px}
 .acc-tt{flex:1;min-width:0}
 .acc-kicker{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;font-family:"IBM Plex Mono",monospace}
-.acc-name{font-size:14.5px;font-weight:600;letter-spacing:-.01em;margin-top:2px;display:flex;align-items:center;gap:8px}
+.acc-name{font-size:14.5px;font-weight:600;letter-spacing:-.01em;margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .chev{width:16px;height:16px;flex:0 0 16px;color:var(--faint);transition:transform .3s;transform:rotate(-90deg)}
 .acc.open .chev{transform:rotate(0)}
 .acc-body{max-height:0;overflow:hidden;transition:max-height .38s cubic-bezier(.6,0,.2,1)}
@@ -115,8 +114,9 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 /* ---------- stage / diagram ---------- */
 .stage-bg{position:absolute;inset:0;
   background:
-    radial-gradient(1100px 620px at 24% 12%,rgba(62,224,165,.10),transparent 60%),
-    radial-gradient(900px 620px at 88% 22%,rgba(240,197,63,.09),transparent 58%),
+    radial-gradient(1100px 620px at 20% 14%,rgba(62,224,165,.10),transparent 60%),
+    radial-gradient(900px 620px at 82% 16%,rgba(240,197,63,.09),transparent 58%),
+    radial-gradient(760px 560px at 16% 66%,rgba(67,198,230,.08),transparent 60%),
     radial-gradient(1000px 720px at 55% 118%,rgba(157,140,243,.10),transparent 60%),
     linear-gradient(180deg,var(--bg2),var(--bg3));
 }
@@ -139,15 +139,15 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 
 /* SVG node styling driven by classes */
 .node{cursor:pointer}
-.node .card{transition:filter .3s}
 .node-shell{transition:opacity .45s}
-.dimmed{opacity:.24}
-.node .plate{transition:transform .25s;transform-box:fill-box;transform-origin:center}
-.node:hover .plate{filter:brightness(1.12)}
+.dimmed{opacity:.22}
+.node .plate{transition:transform .25s}
+.node:hover .plate{filter:brightness(1.14)}
 .node-title{font-weight:700;letter-spacing:-.01em}
 .node-role{font-weight:500}
 .flow{fill:none;stroke-width:2.4;stroke-linecap:round;stroke-dasharray:9 9;animation:flow 1.4s linear infinite}
-.flow.dim{opacity:.3;animation-play-state:paused}
+.flow.cycle{stroke-dasharray:2 7;stroke-width:2}
+.flow.dim{opacity:.28;animation-play-state:paused}
 @keyframes flow{to{stroke-dashoffset:-360}}
 .lato-label{font-family:"IBM Plex Mono",monospace;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
 
@@ -161,7 +161,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .fb-ico svg{width:20px;height:20px}
 .fb-tt{min-width:0}
 .fb-name{font-size:14px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
-.fb-role{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.fb-role{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
 .fb-sep{width:1px;height:30px;background:var(--line-2)}
 
 .hero-hint{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);z-index:8;
@@ -200,7 +200,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
       </svg>
       <div class="brand-txt">
         <div class="brand-name">Mobility<span class="lens">Lens</span></div>
-        <div class="brand-sub">PIATTAFORMA · 4 LAYER</div>
+        <div class="brand-sub">PIATTAFORMA · PIPELINE OPERATIVA</div>
       </div>
       <button class="collapse-btn" id="btnCollapse" title="Nascondi il menu">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
@@ -227,24 +227,25 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
         </button>
         <div>
           <div class="eyebrow">Architettura della piattaforma</div>
-          <div class="h-title">Il modello a 4 layer</div>
+          <div class="h-title">Pipeline Operativa</div>
         </div>
       </div>
       <div class="legend">
         <span class="lg"><i style="background:var(--green)"></i>Territorio</span>
         <span class="lg"><i style="background:var(--gold)"></i>Progetti</span>
+        <span class="lg"><i style="background:var(--cyan)"></i>Mobilità</span>
         <span class="lg"><i style="background:var(--violet)"></i>Convergenza</span>
       </div>
     </div>
 
     <!-- DIAGRAMMA SVG (viewBox animato per l'effetto zoom-camera) -->
-    <svg id="diagram" viewBox="0 0 1200 760" preserveAspectRatio="xMidYMid meet">
+    <svg id="diagram" viewBox="0 0 1360 900" preserveAspectRatio="xMidYMid meet">
       <defs>
         <linearGradient id="cardBg" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="#12241d"/><stop offset="1" stop-color="#0b1712"/>
         </linearGradient>
         <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="7" result="b"/>
+          <feGaussianBlur stdDeviation="6" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
         <pattern id="micro" width="30" height="30" patternUnits="userSpaceOnUse">
@@ -252,33 +253,36 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
         </pattern>
         <marker id="ah-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3ee0a5"/></marker>
         <marker id="ah-gold" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f0c53f"/></marker>
-        <marker id="ah-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#f2a24b"/></marker>
+        <marker id="ah-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#43c6e6"/></marker>
         <marker id="ah-violet" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9d8cf3"/></marker>
       </defs>
 
-      <rect x="0" y="0" width="1200" height="760" fill="url(#micro)"/>
+      <rect x="0" y="0" width="1360" height="900" fill="url(#micro)"/>
 
-      <!-- separatore tra i due lati -->
-      <line x1="478" y1="92" x2="478" y2="392" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 9"/>
-      <text class="lato-label" x="280" y="112" fill="#3ee0a5" font-size="13.5" text-anchor="middle" opacity=".92">Lato 1 · Territorio</text>
-      <text x="280" y="133" fill="#6f857b" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">urbanistica · paesaggio · costruibilità</text>
-      <text class="lato-label" x="876" y="112" fill="#f0c53f" font-size="13.5" text-anchor="middle" opacity=".92">Lato 2 · Progetti</text>
-      <text x="876" y="133" fill="#6f857b" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">reperimento · monitoraggio · correzione</text>
+      <!-- separatore tra i lati (area alta) -->
+      <line x1="637" y1="70" x2="637" y2="440" stroke="var(--line)" stroke-width="1.5" stroke-dasharray="3 9"/>
 
-      <!-- "molte fonti" che alimentano il RAG (funnel) -->
+      <!-- etichette di gruppo -->
+      <text class="lato-label" x="385" y="86" fill="#3ee0a5" font-size="13.5" text-anchor="middle" opacity=".92">Lato 1 · Territorio</text>
+      <text x="385" y="106" fill="#6f857b" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">urbanistica · paesaggio · costruibilità</text>
+      <text class="lato-label" x="988" y="86" fill="#f0c53f" font-size="13.5" text-anchor="middle" opacity=".92">Lato 2 · Progetti</text>
+      <text x="988" y="106" fill="#6f857b" font-size="11" text-anchor="middle" font-family="IBM Plex Mono">reperimento · aggiornamento · localizzazione</text>
+      <text class="lato-label" x="300" y="404" fill="#43c6e6" font-size="12.5" text-anchor="middle" opacity=".92">Mobilità · PUMS</text>
+
+      <!-- "molte fonti" che alimentano il RAG (funnel, a sinistra del RAG) -->
       <g class="fonti">
-        <text x="558" y="207" fill="#c9a63a" font-size="10" text-anchor="middle" font-family="IBM Plex Mono" letter-spacing="2">MOLTE FONTI</text>
-        <text x="558" y="223" fill="#6f857b" font-size="8.5" text-anchor="middle" font-family="IBM Plex Mono">bandi · PNRR · appalti</text>
-        <circle cx="512" cy="240" r="4.5" fill="#f0c53f" opacity=".85"/>
-        <circle cx="512" cy="262" r="4.5" fill="#f0c53f" opacity=".85"/>
-        <circle cx="512" cy="284" r="4.5" fill="#f0c53f" opacity=".85"/>
-        <path class="flow" d="M519 240 C556 240 560 262 592 262" stroke="#f0c53f" opacity=".5"/>
-        <path class="flow" d="M519 262 H592" stroke="#f0c53f" opacity=".5"/>
-        <path class="flow" d="M519 284 C556 284 560 262 592 262" stroke="#f0c53f" opacity=".5"/>
-        <path class="flow" d="M592 262 H613" stroke="#f0c53f" marker-end="url(#ah-gold)"/>
+        <text x="690" y="126" fill="#c9a63a" font-size="9.5" text-anchor="middle" font-family="IBM Plex Mono" letter-spacing="1.6">MOLTE FONTI</text>
+        <text x="690" y="139" fill="#6f857b" font-size="8" text-anchor="middle" font-family="IBM Plex Mono">bandi · PNRR · appalti</text>
+        <circle cx="662" cy="158" r="4.2" fill="#f0c53f" opacity=".85"/>
+        <circle cx="662" cy="180" r="4.2" fill="#f0c53f" opacity=".85"/>
+        <circle cx="662" cy="202" r="4.2" fill="#f0c53f" opacity=".85"/>
+        <path class="flow" d="M668 158 C700 158 704 180 722 180" stroke="#f0c53f" opacity=".5"/>
+        <path class="flow" d="M668 180 H722" stroke="#f0c53f" opacity=".5"/>
+        <path class="flow" d="M668 202 C700 202 704 180 722 180" stroke="#f0c53f" opacity=".5"/>
+        <path class="flow" d="M722 180 H744" stroke="#f0c53f" marker-end="url(#ah-gold)"/>
       </g>
 
-      <!-- connettori principali (aggiunti/gestiti anche via JS per il dimming) -->
+      <!-- connettori (iniettati/gestiti via JS per il dimming) -->
       <g id="links"></g>
 
       <!-- nodi (iniettati via JS) -->
@@ -309,52 +313,75 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 
 <script>
 /* =====================================================================
-   DATI DEI PROCESSORI (i 4 layer)
+   PROCESSORI DELLA PIPELINE
    ===================================================================== */
 const NODES = [
-  {
-    id:"layer", side:"Lato 1 · Territorio", name:"Layer Processor",
-    role:"Urbanistica · paesaggio · costruibilità",
-    acc:"#3ee0a5", cx:280, cy:262, w:252, h:140, zoomW:600, num:"01",
+  { id:"layer", side:"Lato 1 · Territorio", tag:"Territorio", name:"Layer Processor",
+    role:"Acquisizione layer urbanistici",
+    acc:"#3ee0a5", cx:250, cy:205, w:214, h:120, zoomW:580,
     status:"live", link:"http://localhost:3000",
     icon:'<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/>',
-    desc:"Elabora i <b>dati territoriali</b>: urbanistica, paesaggio e costruibilità. Pipeline a stadi (<b>scopri → scarica → riconosci → componi</b>) che uniforma le fonti di tutta Italia e produce i layer tematici e il <b>semaforo di edificabilità</b> per comune e lotto.",
-    note:"Assicurati che il dashboard sia avviato: <code>python3 start_dashboard.py</code> (UI su :3000, API su :8765)."
-  },
-  {
-    id:"rag", side:"Lato 2 · Progetti", name:"RAG Multiagent",
+    desc:"Elabora i <b>dati territoriali</b> (urbanistica, paesaggio, costruibilità). Pipeline a stadi <b>scopri → scarica → riconosci → componi</b> che uniforma le fonti di tutta Italia e produce i <b>layer tematici</b>. È l'input dell'Urbanist Processor.",
+    note:"Assicurati che il dashboard sia avviato: <code>python3 start_dashboard.py</code> (UI su :3000, API su :8765)." },
+
+  { id:"urbanist", side:"Lato 1 · Territorio", tag:"Territorio", name:"Urbanist Processor",
+    role:"Valore urbanistico ai layer",
+    acc:"#45dcae", cx:520, cy:205, w:214, h:120, zoomW:580,
+    status:"soon", link:null,
+    icon:'<path d="M3 21h18"/><path d="M6 21V8l6-4 6 4v13"/><path d="M10 21v-5h4v5"/><path d="M9.5 10h.01M14.5 10h.01"/>',
+    desc:"Prende in input i <b>layer urbanistici</b> dal Layer Processor e li <b>arricchisce di valore</b>: determina <b>dove e secondo quali norme si può costruire</b> (edificabilità) e delinea i <b>possibili usi</b> dei layer in base al <b>cliente target</b>. L'output confluisce nel Database Processor.",
+    note:"Modulo in sviluppo — non ancora collegato." },
+
+  { id:"rag", side:"Lato 2 · Progetti", tag:"Progetti", name:"RAG Multiagent",
     role:"Reperimento progetti da molte fonti",
-    acc:"#f0c53f", cx:740, cy:262, w:248, h:140, zoomW:560, num:"02",
+    acc:"#f0c53f", cx:855, cy:180, w:214, h:120, zoomW:580,
     status:"soon", link:null,
     icon:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>',
-    desc:"Reperisce i <b>progetti</b> incrociando <b>moltissime fonti</b> (bandi, PNRR, appalti, opere pubbliche). Sistema <b>multi-agente</b> che cerca, filtra e raccoglie i dati grezzi sui progetti dal territorio nazionale.",
-    note:"Modulo in sviluppo — non ancora collegato."
-  },
-  {
-    id:"project", side:"Lato 2 · Progetti", name:"Project Processor",
+    desc:"Reperisce i <b>progetti</b> incrociando <b>moltissime fonti</b> (bandi, PNRR, appalti, opere pubbliche). Sistema <b>multi-agente</b> che cerca, filtra e raccoglie i dati grezzi, poi li passa all'<b>Updater</b>.",
+    note:"Modulo in sviluppo — non ancora collegato." },
+
+  { id:"updater", side:"Lato 2 · Progetti", tag:"Progetti", name:"Updater",
+    role:"Aggiornamento web ciclico dei progetti",
+    acc:"#f3ad3c", cx:1120, cy:180, w:214, h:120, zoomW:580,
+    status:"soon", link:null,
+    icon:'<path d="M21 12a9 9 0 11-2.64-6.36"/><path d="M21 4v5h-5"/>',
+    desc:"Agente che si <b>frappone tra RAG e Project Processor</b>: cerca <b>online</b> informazioni aggiuntive sui progetti e li <b>migliora</b> prima di passarli avanti. Ha un <b>rapporto ciclico</b> col Project Processor e <b>controlla di continuo i dati del RAG</b>, iniettandoli progressivamente.",
+    note:"Modulo in sviluppo — non ancora collegato." },
+
+  { id:"project", side:"Lato 2 · Progetti", tag:"Progetti", name:"Project Processor",
     role:"Arricchimento e localizzazione",
-    acc:"#f2a24b", cx:1012, cy:262, w:248, h:140, zoomW:560, num:"03",
+    acc:"#f2903f", cx:1120, cy:360, w:214, h:120, zoomW:580,
     status:"soon", link:null,
     icon:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/>',
-    desc:"Processa i progetti raccolti dal RAG: li <b>arricchisce di informazioni</b>, <b>corregge e aggiunge la localizzazione</b> geografica, normalizza e prepara i dati puliti per il consolidamento finale.",
-    note:"Modulo in sviluppo — non ancora collegato."
-  },
-  {
-    id:"database", side:"Convergenza", name:"Database Processor",
-    role:"Incrocia i due lati → Supabase",
-    acc:"#9d8cf3", cx:640, cy:520, w:320, h:148, zoomW:720, num:"04",
+    desc:"Processa i progetti (già arricchiti dall'Updater): <b>corregge e aggiunge la localizzazione</b> geografica, normalizza e prepara i <b>dati puliti</b>. L'output confluisce nel Database Processor.",
+    note:"Modulo in sviluppo — non ancora collegato." },
+
+  { id:"pums", side:"Mobilità · PUMS", tag:"Mobilità", name:"PUMS Processor",
+    role:"Individua, scarica e analizza i PUMS",
+    acc:"#43c6e6", cx:300, cy:490, w:214, h:120, zoomW:580,
+    status:"soon", link:null,
+    icon:'<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
+    desc:"Processo <b>parallelo</b> a RAG/Project: <b>individua</b> i PUMS (Piani Urbani della Mobilità Sostenibile, in <b>PDF</b>), li <b>scarica</b> e li <b>analizza</b>, poi trasferisce i risultati al Database Processor.",
+    note:"Modulo in sviluppo — non ancora collegato." },
+
+  { id:"database", side:"Convergenza", tag:"Convergenza", name:"Database Processor",
+    role:"Incrocia gli stream → Supabase",
+    acc:"#9d8cf3", cx:700, cy:670, w:300, h:150, zoomW:760,
     status:"soon", link:null,
     icon:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0018 0V5"/><path d="M3 12a9 3 0 0018 0"/>',
-    desc:"Punto di <b>convergenza</b> del modello: raccoglie i dati da <b>entrambi i lati</b> (territorio + progetti), li <b>incrocia</b> e li carica su <b>Supabase</b>, unificando tutta la piattaforma in un'unica base dati.",
-    note:"Modulo in sviluppo — non ancora collegato."
-  }
+    desc:"Punto di <b>convergenza</b> della pipeline: raccoglie i dati da <b>tutti gli stream</b> (territorio, progetti, mobilità), li <b>incrocia</b> e li carica su <b>Supabase</b>, in un'unica base dati unificata.",
+    note:"Modulo in sviluppo — non ancora collegato." }
 ];
 
-/* connettori: from -> to (bordi dei nodi), colore = accento della sorgente */
+/* connettori: {from, to, fs(fromSide), ts(toSide), color, marker, cycle?, k1,k2, toOff,fromOff} */
 const LINKS = [
-  {from:"rag", to:"project", color:"#f0c53f", marker:"ah-gold"},
-  {from:"layer", to:"database", color:"#3ee0a5", marker:"ah-green"},
-  {from:"project", to:"database", color:"#f2a24b", marker:"ah-orange"},
+  { from:"layer",    to:"urbanist", fs:"right",  ts:"left",  color:"#3ee0a5", marker:"ah-green" },
+  { from:"urbanist", to:"database", fs:"bottom", ts:"top",   color:"#3ee0a5", marker:"ah-green", toOff:[-95,0], k1:50, k2:100 },
+  { from:"rag",      to:"updater",  fs:"right",  ts:"left",  color:"#f0c53f", marker:"ah-gold" },
+  { from:"updater",  to:"project",  fs:"bottom", ts:"top",   color:"#f0c53f", marker:"ah-gold", k1:30, k2:30 },
+  { from:"project",  to:"updater",  fs:"right",  ts:"right", color:"#f0c53f", marker:"ah-gold", cycle:true, k1:85, k2:85 },
+  { from:"project",  to:"database", fs:"bottom", ts:"top",   color:"#f0c53f", marker:"ah-gold", toOff:[95,0], k1:70, k2:110 },
+  { from:"pums",     to:"database", fs:"right",  ts:"left",  color:"#43c6e6", marker:"ah-cyan", toOff:[0,22], k1:80, k2:70 },
 ];
 
 const SVGNS="http://www.w3.org/2000/svg";
@@ -370,31 +397,33 @@ function el(tag,attrs={},...kids){
   return e;
 }
 
-/* ---------- disegno connettori ---------- */
-function edgePoint(n,dir){ // dir: 'bottom','top','left','right'
-  const x=n.cx,y=n.cy,hw=n.w/2,hh=n.h/2;
-  return {bottom:[x,y+hh],top:[x,y-hh],left:[x-hw,y],right:[x+hw,y]}[dir];
+/* ---------- connettori generici (bezier tra i bordi dei nodi) ---------- */
+const DIRV={top:[0,-1],bottom:[0,1],left:[-1,0],right:[1,0]};
+function edgePoint(n,side){ const x=n.cx,y=n.cy,hw=n.w/2,hh=n.h/2;
+  return {bottom:[x,y+hh],top:[x,y-hh],left:[x-hw,y],right:[x+hw,y]}[side]; }
+function pathBetween(a,aSide,b,bSide,o={}){
+  const P=edgePoint(a,aSide).slice(), Q=edgePoint(b,bSide).slice();
+  if(o.fromOff){P[0]+=o.fromOff[0];P[1]+=o.fromOff[1];}
+  if(o.toOff){Q[0]+=o.toOff[0];Q[1]+=o.toOff[1];}
+  const k1=o.k1??70, k2=o.k2??70;
+  const c1=[P[0]+DIRV[aSide][0]*k1, P[1]+DIRV[aSide][1]*k1];
+  const c2=[Q[0]+DIRV[bSide][0]*k2, Q[1]+DIRV[bSide][1]*k2];
+  return `M${P[0]} ${P[1]} C${c1[0]} ${c1[1]} ${c2[0]} ${c2[1]} ${Q[0]} ${Q[1]}`;
 }
 LINKS.forEach(l=>{
-  const a=byId[l.from], b=byId[l.to];
-  let p1,p2,d;
-  if(l.from==="rag"&&l.to==="project"){
-    p1=edgePoint(a,"right"); p2=edgePoint(b,"left");
-    d=`M${p1[0]} ${p1[1]} H${p2[0]}`;
-  } else { // convergenza verso database (dall'alto ai lati)
-    p1=edgePoint(a,"bottom"); p2=[b.cx+(l.from==="layer"?-90:90), b.cy-b.h/2];
-    const midY=(p1[1]+p2[1])/2;
-    d=`M${p1[0]} ${p1[1]} C${p1[0]} ${midY} ${p2[0]} ${p1[1]} ${p2[0]} ${p2[1]}`;
-  }
-  const path=el('path',{class:'flow',d,stroke:l.color,'marker-end':`url(#${l.marker})`,'data-link':`${l.from}-${l.to}`});
-  gLinks.appendChild(path);
+  const d=pathBetween(byId[l.from], l.fs, byId[l.to], l.ts, l);
+  gLinks.appendChild(el('path',{class:l.cycle?'flow cycle':'flow', d, stroke:l.color,
+    'marker-end':`url(#${l.marker})`, 'data-link':`${l.from}-${l.to}`}));
 });
-/* database -> supabase (uscita) + endpoint Supabase */
+/* etichetta "ciclo" accanto al loop Updater⇄Project */
+gLinks.appendChild(el('text',{x:1288,y:274,fill:'#f0c53f','font-size':10,'text-anchor':'middle',
+  'font-family':'IBM Plex Mono','letter-spacing':1,opacity:.8},'ciclo'));
+
+/* database -> Supabase (uscita) + endpoint */
 (function(){
   const db=byId.database, p=edgePoint(db,"bottom");
   const topY=p[1]+42;
   gLinks.appendChild(el('path',{class:'flow',d:`M${p[0]} ${p[1]} V${topY-4}`,stroke:'#3ee0a5','marker-end':'url(#ah-green)'}));
-  // pill "Supabase" (destinazione finale, non un processore)
   const g=el('g'); const px=p[0]-98, pw=196, ph=46;
   g.appendChild(el('rect',{x:px,y:topY,width:pw,height:ph,rx:14,fill:'url(#cardBg)',stroke:'#3ee0a5','stroke-opacity':.5}));
   const ico=el('g',{transform:`translate(${px+15},${topY+13})`,fill:'#3ee0a5',stroke:'none'});
@@ -411,30 +440,23 @@ NODES.forEach(n=>{
   const g=el('g',{class:'node','data-id':n.id});
   const shell=el('g',{class:'node-shell'});
 
-  // alone accento
   shell.appendChild(el('rect',{class:'plate',x,y,width:n.w,height:n.h,rx:r,fill:'none',
     stroke:n.acc,'stroke-width':1.4,opacity:.9,filter:'url(#glow)'}));
-  // corpo card
   shell.appendChild(el('rect',{x,y,width:n.w,height:n.h,rx:r,fill:'url(#cardBg)',stroke:n.acc,'stroke-width':1.4,'stroke-opacity':.55}));
-  // barra accento in alto
   shell.appendChild(el('rect',{x:x+16,y:y-1,width:n.w-32,height:3,rx:1.5,fill:n.acc,opacity:.85}));
 
-  // icona
-  const ib=18;
-  const iconBox=el('g',{transform:`translate(${x+20},${y+20})`});
-  iconBox.appendChild(el('rect',{x:0,y:0,width:44,height:44,rx:12,fill:n.acc,'fill-opacity':.14,stroke:n.acc,'stroke-opacity':.4}));
-  const ic=el('g',{transform:'translate(10,10) scale(1.0)',fill:'none',stroke:n.acc,'stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round'});
+  const iconBox=el('g',{transform:`translate(${x+18},${y+18})`});
+  iconBox.appendChild(el('rect',{x:0,y:0,width:42,height:42,rx:12,fill:n.acc,'fill-opacity':.14,stroke:n.acc,'stroke-opacity':.4}));
+  const ic=el('g',{transform:'translate(9,9)',fill:'none',stroke:n.acc,'stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round'});
   ic.innerHTML=n.icon;
   iconBox.appendChild(ic);
   shell.appendChild(iconBox);
 
-  // testi
-  shell.appendChild(el('text',{x:x+78,y:y+31,fill:n.acc,'font-size':10,'font-family':'IBM Plex Mono','letter-spacing':2.2,opacity:.9},'LAYER '+n.num));
-  shell.appendChild(el('text',{class:'node-title',x:x+78,y:y+53,fill:'#f2f7f4','font-size':17},n.name));
-  shell.appendChild(el('text',{class:'node-role',x:x+22,y:y+n.h-34,fill:'#aebfb6','font-size':12},n.role));
+  shell.appendChild(el('text',{x:x+74,y:y+30,fill:n.acc,'font-size':10,'font-family':'IBM Plex Mono','letter-spacing':2,opacity:.9},n.tag.toUpperCase()));
+  shell.appendChild(el('text',{class:'node-title',x:x+74,y:y+52,fill:'#f2f7f4','font-size':17},n.name));
+  shell.appendChild(el('text',{class:'node-role',x:x+20,y:y+n.h-32,fill:'#aebfb6','font-size':11.5},n.role));
 
-  // status chip
-  const chipG=el('g',{transform:`translate(${x+20},${y+n.h-24})`});
+  const chipG=el('g',{transform:`translate(${x+18},${y+n.h-24})`});
   const live=n.status==="live";
   const cw=live?86:112;
   chipG.appendChild(el('rect',{x:0,y:0,width:cw,height:20,rx:10,fill:live?'rgba(62,224,165,.14)':'rgba(127,149,139,.12)',stroke:live?'rgba(62,224,165,.35)':'var(--line-2)'}));
@@ -442,9 +464,8 @@ NODES.forEach(n=>{
   chipG.appendChild(el('text',{x:22,y:14,fill:live?'#3ee0a5':'#7f958b','font-size':9.5,'font-weight':700,'font-family':'IBM Plex Mono','letter-spacing':.5},live?"ATTIVO":"IN SVILUPPO"));
   shell.appendChild(chipG);
 
-  // freccia "apri" (solo nodo attivo) nell'angolo, allineata al titolo
   if(live){
-    const arr=el('g',{transform:`translate(${x+n.w-32},${y+18})`,fill:'none',stroke:n.acc,'stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round',opacity:.85});
+    const arr=el('g',{transform:`translate(${x+n.w-30},${y+17})`,fill:'none',stroke:n.acc,'stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round',opacity:.85});
     arr.appendChild(el('path',{d:'M6 14L14 6M7 6h7v7'}));
     shell.appendChild(arr);
   }
@@ -457,7 +478,7 @@ NODES.forEach(n=>{
 /* =====================================================================
    ZOOM-CAMERA (animazione del viewBox)
    ===================================================================== */
-const VB={x:0,y:0,w:1200,h:760};
+const VB={x:0,y:0,w:1360,h:900};
 let cur={...VB}, raf=null;
 const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 const setVB=b=>svg.setAttribute('viewBox',`${b.x} ${b.y} ${b.w} ${b.h}`);
@@ -473,7 +494,7 @@ function tween(target,dur=760){
   })(performance.now());
 }
 function zoomTo(n){
-  const zw=n.zoomW||560, zh=zw*(VB.h/VB.w);
+  const zw=n.zoomW||580, zh=zw*(VB.h/VB.w);
   let x=n.cx-zw/2, y=n.cy-zh/2;
   x=Math.max(-60,Math.min(x,VB.w-zw+60));
   y=Math.max(-60,Math.min(y,VB.h-zh+60));
@@ -484,14 +505,12 @@ function zoomTo(n){
    SELEZIONE / STATO
    ===================================================================== */
 let currentId=null;
-
 function setDim(activeId){
   document.querySelectorAll('#nodes .node').forEach(g=>{
     g.querySelector('.node-shell').classList.toggle('dimmed', activeId && g.dataset.id!==activeId);
   });
   gLinks.querySelectorAll('.flow').forEach(p=>p.classList.toggle('dim', !!activeId));
 }
-
 function selectNode(id){
   const n=byId[id];
   currentId=id;
@@ -500,11 +519,9 @@ function selectNode(id){
   openAcc(id,true);
   showFocusbar(n);
   document.getElementById('heroHint').classList.add('hide');
-  // scrolla la voce nel menu
   const head=document.querySelector(`.acc[data-id="${id}"]`);
   if(head) head.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-
 function overview(){
   currentId=null;
   tween({...VB});
@@ -526,7 +543,7 @@ function showFocusbar(n){
   ico.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg>`;
   const act=document.getElementById('fbAction');
   if(n.status==="live"){
-    act.className="btn primary"; act.textContent="Apri Layer Processor";
+    act.className="btn primary"; act.textContent="Apri "+n.name;
     act.onclick=()=>window.open(n.link,'_blank');
   } else {
     act.className="btn disabled"; act.textContent="In sviluppo";
@@ -540,20 +557,20 @@ function showFocusbar(n){
    ===================================================================== */
 const sideBody=document.getElementById('sideBody');
 
-// voce intro
 const intro=document.createElement('div');
 intro.className='acc open'; intro.dataset.id='intro'; intro.style.setProperty('--acc','#3ee0a5');
 intro.innerHTML=`
   <button class="acc-head" data-toggle>
     <span class="acc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg></span>
-    <span class="acc-tt"><span class="acc-kicker">Come funziona</span><span class="acc-name">Panoramica del modello</span></span>
+    <span class="acc-tt"><span class="acc-kicker">Come funziona</span><span class="acc-name">Panoramica della pipeline</span></span>
     <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
   </button>
   <div class="acc-body"><div class="acc-body-inner">
-    <p class="acc-desc">La piattaforma <b>MobilityLens</b> lavora su <b>due lati</b> che convergono in un'unica base dati.</p>
-    <p class="acc-desc"><b style="color:var(--green)">Lato 1 — Territorio.</b> Il <b>Layer Processor</b> si occupa di urbanistica, paesaggio e costruibilità.</p>
-    <p class="acc-desc"><b style="color:var(--gold)">Lato 2 — Progetti.</b> Il <b>RAG Multiagent</b> reperisce i progetti da molte fonti; il <b>Project Processor</b> li arricchisce e li localizza.</p>
-    <p class="acc-desc"><b style="color:var(--violet)">Convergenza.</b> Il <b>Database Processor</b> incrocia i dati dei due lati e li carica su Supabase.</p>
+    <p class="acc-desc">La <b>Pipeline Operativa</b> di MobilityLens raccoglie dati da <b>più stream</b> che confluiscono in un'unica base dati.</p>
+    <p class="acc-desc"><b style="color:var(--green)">Territorio.</b> Il <b>Layer Processor</b> acquisisce i layer urbanistici; l'<b>Urbanist Processor</b> vi porta valore urbanistico (edificabilità, usi possibili).</p>
+    <p class="acc-desc"><b style="color:var(--gold)">Progetti.</b> Il <b>RAG</b> reperisce i progetti; l'<b>Updater</b> li aggiorna ciclicamente cercando info online; il <b>Project Processor</b> li localizza.</p>
+    <p class="acc-desc"><b style="color:var(--cyan)">Mobilità.</b> Il <b>PUMS Processor</b> individua, scarica e analizza i PUMS (in PDF), in parallelo ai progetti.</p>
+    <p class="acc-desc"><b style="color:var(--violet)">Convergenza.</b> Il <b>Database Processor</b> incrocia tutti gli stream e carica su Supabase.</p>
     <button class="btn ghost" data-overview>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
       Vista panoramica
@@ -561,7 +578,6 @@ intro.innerHTML=`
   </div></div>`;
 sideBody.appendChild(intro);
 
-// caption + voci processori raggruppate per lato
 let lastSide=null;
 NODES.forEach(n=>{
   if(n.side!==lastSide){
@@ -576,7 +592,7 @@ NODES.forEach(n=>{
     <button class="acc-head" data-toggle>
       <span class="acc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${n.icon}</svg></span>
       <span class="acc-tt">
-        <span class="acc-kicker">Layer · ${n.id}</span>
+        <span class="acc-kicker">${n.tag}</span>
         <span class="acc-name">${n.name}
           <span class="chip ${live?'live':'soon'}"><span class="dot"></span>${live?'Attivo':'In sviluppo'}</span>
         </span>
@@ -596,7 +612,6 @@ NODES.forEach(n=>{
   sideBody.appendChild(acc);
 });
 
-/* apertura/chiusura accordion + animazione max-height */
 function syncAccBodies(){
   document.querySelectorAll('.acc').forEach(a=>{
     const body=a.querySelector('.acc-body');
@@ -613,7 +628,6 @@ function openAcc(id,markActive){
   syncAccBodies();
 }
 
-/* wiring click nel menu */
 sideBody.addEventListener('click',e=>{
   const head=e.target.closest('[data-toggle]');
   const zoomBtn=e.target.closest('[data-zoom]');
@@ -634,19 +648,13 @@ sideBody.addEventListener('click',e=>{
   }
 });
 
-/* focusbar buttons */
 document.getElementById('fbBack').addEventListener('click',overview);
-
-/* click sul fondo del diagramma = panoramica */
 svg.addEventListener('click',overview);
 document.querySelector('.stage-bg').addEventListener('click',overview);
 
-/* collapse sidebar */
 const app=document.getElementById('app');
 document.getElementById('btnCollapse').addEventListener('click',()=>app.classList.add('nav-closed'));
 document.getElementById('btnOpenNav').addEventListener('click',()=>app.classList.remove('nav-closed'));
-
-/* tastiera: Esc = panoramica */
 window.addEventListener('keydown',e=>{if(e.key==="Escape")overview();});
 
 /* init */

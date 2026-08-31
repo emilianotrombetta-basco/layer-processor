@@ -143,31 +143,6 @@ type SourcesResponse = {
   sources: Source[];
 };
 
-type CatalogSource = Source & {
-  region?: string;
-  region_istat?: string;
-  feeds_target?: string;
-  managed_by?: string;
-  proposed_adapter?: string;
-};
-
-type CatalogGroup = {
-  key: string;
-  name: string;
-  livello: string;
-  icon_url?: string;
-  total: number;
-  downloadable: number;
-  sources: CatalogSource[];
-};
-
-type CatalogResponse = {
-  groups: CatalogGroup[];
-  total_sources: number;
-  downloadable_sources: number;
-  categories?: number;
-};
-
 type TerritoryMetrics = {
   source_count: number;
   active_source_count: number;
@@ -541,7 +516,7 @@ function FinalLayerMap({ data }: { data: FinalLayers }) {
 
 export default function Home() {
   const [tab, setTab] = useState<
-    "processes" | "territory" | "sources" | "catalog"
+    "processes" | "territory" | "sources" | "coverage"
   >("processes");
   const [scope, setScope] = useState<Scope>({
     level: "region",
@@ -641,36 +616,22 @@ export default function Home() {
       setHealthLoading(false);
     }
   };
+  const [coverageMatrix, setCoverageMatrix] = useState<{
+    regions: string[];
+    region_names: Record<string, string>;
+    targets: string[];
+    matrix: Record<string, Record<string, number | null>>;
+    totals_by_target: Record<string, number>;
+    coverage_by_target: Record<string, number>;
+    totals_by_region: Record<string, number>;
+    total_features: number;
+  } | null>(null);
+  const [coverageLoading, setCoverageLoading] = useState(false);
   const [onlyActiveSources, setOnlyActiveSources] = useState(false);
-  const [catalog, setCatalog] = useState<CatalogResponse | null>(null);
-  const [catalogLoading, setCatalogLoading] = useState(false);
-  const [onlyRunnableCatalog, setOnlyRunnableCatalog] = useState(false);
+  const [onlySourceDownloadable, setOnlySourceDownloadable] = useState(false);
   const [sourceChecks, setSourceChecks] = useState<
     Record<string, { status: string; loading?: boolean }>
   >({});
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(),
-  );
-  const toggleCategory = (key: string) =>
-    setExpandedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-
-  const loadCatalog = useCallback(async () => {
-    setCatalogLoading(true);
-    try {
-      const r = await fetch(`${API}/api/sources/catalog`);
-      setCatalog((await r.json()) as CatalogResponse);
-    } catch {
-      setCatalog(null);
-    } finally {
-      setCatalogLoading(false);
-    }
-  }, []);
-
   const getTerritories = useCallback(
     async (
       level: Scope["level"],
@@ -767,9 +728,14 @@ export default function Home() {
   }, [data?.job?.id, data?.job?.stage, data?.job?.status]);
 
   useEffect(() => {
-    if (tab !== "catalog") return;
-    void loadCatalog();
-  }, [tab, loadCatalog, data?.job?.status]);
+    if (tab !== "coverage") return;
+    setCoverageLoading(true);
+    fetch(`${API}/api/coverage-matrix`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setCoverageMatrix(d))
+      .catch(() => setCoverageMatrix(null))
+      .finally(() => setCoverageLoading(false));
+  }, [tab]);
 
   useEffect(() => {
     if (tab !== "sources") return;
@@ -1178,7 +1144,15 @@ export default function Home() {
     const matchesLevel =
       sourceLevelFilter === "all" || source.level === sourceLevelFilter;
     const matchesStatus = !onlyActiveSources || source.status === "active";
-    return matchesQuery && matchesPlan && matchesLevel && matchesStatus;
+    const matchesDownloadable =
+      !onlySourceDownloadable || Boolean(source.download_available);
+    return (
+      matchesQuery &&
+      matchesPlan &&
+      matchesLevel &&
+      matchesStatus &&
+      matchesDownloadable
+    );
   });
   const activeSourceTotal = applicableSources.filter(
     (source) => source.status === "active",
@@ -1213,10 +1187,16 @@ export default function Home() {
             Territorio
           </button>
           <button
-            className={tab === "catalog" ? "active" : ""}
-            onClick={() => setTab("catalog")}
+            className={tab === "sources" ? "active" : ""}
+            onClick={() => setTab("sources")}
           >
             Fonti
+          </button>
+          <button
+            className={tab === "coverage" ? "active" : ""}
+            onClick={() => setTab("coverage")}
+          >
+            Copertura
           </button>
         </nav>
         <span className={`connection-state ${offline ? "offline" : ""}`}>
@@ -2222,6 +2202,24 @@ export default function Home() {
                 />
                 Solo fonti attive
               </label>
+              <label className="source-active-filter">
+                <input
+                  type="checkbox"
+                  checked={onlySourceDownloadable}
+                  onChange={(event) =>
+                    setOnlySourceDownloadable(event.target.checked)
+                  }
+                />
+                Solo scaricabili
+              </label>
+              <label className="source-active-filter">
+                <input
+                  type="checkbox"
+                  checked={onlyNew}
+                  onChange={(event) => setOnlyNew(event.target.checked)}
+                />
+                Solo dati nuovi
+              </label>
             </div>
 
             <div className="source-results-head">
@@ -2233,16 +2231,36 @@ export default function Home() {
                 </span>
               </div>
               {sourceLoading && <small>Aggiornamento registro…</small>}
+              {(() => {
+                const downloadable = filteredSources.filter(
+                  (source) => source.download_available,
+                );
+                return downloadable.length ? (
+                  <button
+                    className="run-button"
+                    disabled={busy}
+                    onClick={() =>
+                      runSourcesBatch(downloadable.map((source) => source.key))
+                    }
+                  >
+                    {busy
+                      ? "Avvio…"
+                      : `Scarica scaricabili (${downloadable.length})`}
+                  </button>
+                ) : null;
+              })()}
               {(sourceQuery ||
                 sourcePlanFilter !== "all" ||
                 sourceLevelFilter !== "all" ||
-                onlyActiveSources) && (
+                onlyActiveSources ||
+                onlySourceDownloadable) && (
                 <button
                   onClick={() => {
                     setSourceQuery("");
                     setSourcePlanFilter("all");
                     setSourceLevelFilter("all");
                     setOnlyActiveSources(false);
+                    setOnlySourceDownloadable(false);
                   }}
                 >
                   Azzera filtri
@@ -2372,6 +2390,27 @@ export default function Home() {
                               : "Portale cartografico"}
                         </span>
                         <div className="source-card-links">
+                          {source.download_available && (
+                            <button
+                              disabled={busy}
+                              onClick={() => runSourceDownload(source.key)}
+                              style={{
+                                padding: "6px 12px",
+                                borderRadius: 8,
+                                border: "1px solid var(--line)",
+                                background: "var(--green-soft)",
+                                color: "var(--green)",
+                                fontWeight: 700,
+                                fontSize: 12,
+                                cursor: busy ? "default" : "pointer",
+                                opacity: busy ? 0.5 : 1,
+                              }}
+                            >
+                              {(source.downloaded_datasets || 0) > 0
+                                ? "Riscarica"
+                                : "Scarica"}
+                            </button>
+                          )}
                           {source.links?.map((link) => (
                             <a
                               href={link.url}
@@ -2426,280 +2465,100 @@ export default function Home() {
             )}
           </section>
         </section>
-      ) : (
-        <section className="content catalog-content">
-          <div className="catalog-header">
+      ) : tab === "coverage" ? (
+        <section className="content coverage-content">
+          <div className="page-title">
             <div>
-              <p className="catalog-eyebrow">Registro delle fonti</p>
-              <h1>Fonti</h1>
+              <p>Matrice nazionale</p>
+              <h1>Copertura</h1>
             </div>
-            <div className="catalog-header-actions">
-              <label className="catalog-toggle">
-                <input
-                  type="checkbox"
-                  checked={onlyRunnableCatalog}
-                  onChange={(event) =>
-                    setOnlyRunnableCatalog(event.target.checked)
-                  }
-                />
-                Solo scaricabili
-              </label>
-              <label className="catalog-toggle">
-                <input
-                  type="checkbox"
-                  checked={onlyNew}
-                  onChange={(event) => setOnlyNew(event.target.checked)}
-                />
-                Solo dati nuovi
-              </label>
-              <button
-                className="catalog-btn ghost"
-                onClick={() => void loadCatalog()}
-                disabled={catalogLoading}
-              >
-                Aggiorna
-              </button>
-              <button
-                className="catalog-btn primary"
-                disabled={
-                  busy || data?.job?.status === "running" || !catalog
-                }
-                onClick={() =>
-                  catalog &&
-                  void runSourcesBatch(
-                    catalog.groups
-                      .flatMap((group) => group.sources)
-                      .filter((source) => source.download_available)
-                      .map((source) => source.key),
-                  )
-                }
-              >
-                Scarica tutte
-              </button>
-            </div>
+            {coverageMatrix && (
+              <div className="summary-line">
+                <span>
+                  <strong>{coverageMatrix.targets.length}</strong> target
+                </span>
+                <span>
+                  <strong>{coverageMatrix.total_features.toLocaleString("it-IT")}</strong> feature totali
+                </span>
+              </div>
+            )}
           </div>
-
-          {catalog && (
-            <p className="catalog-summary">
-              {catalog.downloadable_sources} scaricabili su{" "}
-              {catalog.total_sources} dataset ·{" "}
-              {catalog.categories ?? catalog.groups.length} enti
-            </p>
-          )}
-
-          {catalogLoading && !catalog ? (
-            <p className="catalog-empty">Caricamento del catalogo…</p>
-          ) : !catalog || catalog.groups.length === 0 ? (
-            <p className="catalog-empty">Nessuna fonte nel registro.</p>
-          ) : (
-            <div className="catalog-groups">
-              {catalog.groups.map((group) => {
-                const groupSources = onlyRunnableCatalog
-                  ? group.sources.filter((source) => source.download_available)
-                  : group.sources;
-                if (groupSources.length === 0) return null;
-                const runnableKeys = groupSources
-                  .filter((source) => source.download_available)
-                  .map((source) => source.key);
-                const jobRunning = data?.job?.status === "running";
-                const expanded = expandedCategories.has(group.key);
-                const catFav = faviconOf(group.icon_url);
-                return (
-                  <section
-                    className={`catalog-cat${expanded ? " is-open" : ""}`}
-                    key={group.key}
-                  >
-                    <div
-                      className="catalog-cat-head"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => toggleCategory(group.key)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ")
-                          toggleCategory(group.key);
-                      }}
-                    >
-                      <span
-                        className="catalog-icon lg"
-                        data-mono={monogram(group.name)}
-                      >
-                        {catFav && (
-                          <img
-                            src={catFav}
-                            alt=""
-                            loading="lazy"
-                            onError={(event) => {
-                              (
-                                event.currentTarget as HTMLImageElement
-                              ).style.display = "none";
-                            }}
-                          />
-                        )}
-                      </span>
-                      <div className="catalog-cat-title">
-                        <span className="catalog-cat-name">{group.name}</span>
-                        <span className="catalog-cat-meta">
-                          {group.total} dataset
-                          {group.downloadable > 0 &&
-                            ` · ${group.downloadable} scaricabili`}
-                        </span>
-                      </div>
-                      <div className="catalog-cat-right">
-                        {runnableKeys.length > 0 && (
-                          <button
-                            className="catalog-btn ghost small"
-                            disabled={busy || jobRunning}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void runSourcesBatch(runnableKeys);
-                            }}
-                          >
-                            Scarica
-                            {runnableKeys.length > 1
-                              ? ` (${runnableKeys.length})`
-                              : ""}
-                          </button>
-                        )}
-                        <span
-                          className={`catalog-chev${expanded ? " open" : ""}`}
-                          aria-hidden
-                        >
-                          ▾
-                        </span>
-                      </div>
-                    </div>
-                    {expanded && (
-                    <div className="catalog-grid">
-                      {groupSources.map((source) => {
-                        const isThis =
-                          jobRunning && data?.job?.scope?.key === source.key;
-                        const pct = source.expected_datasets
-                          ? Math.min(
-                              100,
-                              ((source.downloaded_datasets || 0) /
-                                source.expected_datasets) *
-                                100,
-                            )
-                          : 0;
-                        const check = sourceChecks[source.key];
-                        const fav = faviconOf(source.url);
-                        return (
-                          <article
-                            className={`catalog-card${
-                              source.download_available ? "" : " is-disabled"
-                            }`}
-                            key={source.key}
-                          >
-                            <div className="catalog-card-top">
-                              <span
-                                className="catalog-icon"
-                                data-mono={monogram(source.key)}
-                              >
-                                {fav && (
-                                  <img
-                                    src={fav}
-                                    alt=""
-                                    loading="lazy"
-                                    onError={(event) => {
-                                      (
-                                        event.currentTarget as HTMLImageElement
-                                      ).style.display = "none";
-                                    }}
-                                  />
-                                )}
-                              </span>
-                              <div className="catalog-card-id">
-                                <h3 title={source.name}>{source.name}</h3>
-                                <span className="catalog-card-sub">
-                                  {source.key} ·{" "}
-                                  {source.adapter ||
-                                    source.proposed_adapter ||
-                                    source.kind ||
-                                    "—"}
-                                </span>
-                              </div>
-                              {check && (
-                                <span
-                                  className={`catalog-dot ${check.status}`}
-                                  title={checkLabels[check.status] || check.status}
-                                >
-                                  <i />
-                                  {checkLabels[check.status] || check.status}
-                                </span>
-                              )}
-                            </div>
-
-                            {source.feeds_target && (
-                              <span className="catalog-target">
-                                {source.feeds_target}
-                              </span>
-                            )}
-
-                            <div className="catalog-progress">
-                              <span style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="catalog-count">
-                              {source.downloaded_datasets || 0}/
-                              {source.expected_datasets || "?"} layer
-                            </span>
-
-                            <div className="catalog-actions">
-                              {source.download_available ? (
-                                <button
-                                  className="catalog-btn primary small"
-                                  disabled={busy || jobRunning}
-                                  onClick={() =>
-                                    void runSourceDownload(source.key)
-                                  }
-                                >
-                                  {isThis
-                                    ? "In corso…"
-                                    : source.downloaded_datasets
-                                      ? "Riscarica"
-                                      : "Scarica"}
-                                </button>
-                              ) : (
-                                <span
-                                  className="catalog-pending"
-                                  title={
-                                    source.proposed_adapter
-                                      ? `Adapter: ${source.proposed_adapter}`
-                                      : ""
-                                  }
-                                >
-                                  Da implementare
-                                </span>
-                              )}
-                              <button
-                                className="catalog-btn ghost small"
-                                disabled={check?.loading}
-                                onClick={() => void checkSource(source.key)}
-                              >
-                                {check?.loading ? "…" : "Verifica"}
-                              </button>
-                              {source.url && (
-                                <a
-                                  className="catalog-btn link small"
-                                  href={source.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  Fonte ↗
-                                </a>
-                              )}
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                    )}
-                  </section>
-                );
-              })}
+          {coverageLoading && <p>Caricamento matrice…</p>}
+          {coverageMatrix && (
+            <div className="coverage-matrix-wrap">
+              <table className="coverage-matrix">
+                <thead>
+                  <tr>
+                    <th className="cm-corner">Target</th>
+                    {coverageMatrix.regions.map((rk) => (
+                      <th key={rk} className="cm-region" title={coverageMatrix.region_names[rk]}>
+                        {coverageMatrix.region_names[rk].slice(0, 3).toUpperCase()}
+                      </th>
+                    ))}
+                    <th className="cm-total">Reg</th>
+                    <th className="cm-total">Totale</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {coverageMatrix.targets.map((target) => {
+                    const row = coverageMatrix.matrix[target];
+                    const cov = coverageMatrix.coverage_by_target[target] || 0;
+                    const total = coverageMatrix.totals_by_target[target] || 0;
+                    return (
+                      <tr key={target}>
+                        <td className="cm-target" title={target}>
+                          {target.replace(/_/g, " ")}
+                        </td>
+                        {coverageMatrix.regions.map((rk) => {
+                          const v = row[rk];
+                          const cls =
+                            v === null || v === undefined
+                              ? "cm-cell cm-empty"
+                              : v === 0
+                                ? "cm-cell cm-zero"
+                                : v < 100
+                                  ? "cm-cell cm-low"
+                                  : v < 10000
+                                    ? "cm-cell cm-mid"
+                                    : "cm-cell cm-high";
+                          return (
+                            <td
+                              key={rk}
+                              className={cls}
+                              title={`${coverageMatrix.region_names[rk]}: ${v === null ? "–" : v.toLocaleString("it-IT")} ft`}
+                            >
+                              {v === null ? "" : v === 0 ? "0" : v < 1000 ? String(v) : `${Math.round(v / 1000)}k`}
+                            </td>
+                          );
+                        })}
+                        <td className="cm-total">{cov}/20</td>
+                        <td className="cm-total">{total.toLocaleString("it-IT")}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td className="cm-target">TOTALE</td>
+                    {coverageMatrix.regions.map((rk) => {
+                      const v = coverageMatrix.totals_by_region[rk] || 0;
+                      return (
+                        <td key={rk} className="cm-cell cm-foot" title={coverageMatrix.region_names[rk]}>
+                          {v < 1000 ? String(v) : `${Math.round(v / 1000)}k`}
+                        </td>
+                      );
+                    })}
+                    <td className="cm-total" />
+                    <td className="cm-total">
+                      {coverageMatrix.total_features.toLocaleString("it-IT")}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           )}
         </section>
-      )}
+      ) : null}
     </main>
   );
 }

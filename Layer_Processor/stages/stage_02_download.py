@@ -220,6 +220,16 @@ def run(
             progress=progress,
             call_event=call_event,
         )
+    if source.get("adapter") == "cruscotto":
+        from lib import cruscotto
+        return cruscotto.download(
+            manifest_path,
+            raw_dir,
+            dry_run=dry_run,
+            refresh=refresh,
+            progress=progress,
+            call_event=call_event,
+        )
     raise NotImplementedError(
         f"stage_02_download: adapter non implementato: {source.get('adapter') or source.get('kind')}"
     )

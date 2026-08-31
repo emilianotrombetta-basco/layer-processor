@@ -6,6 +6,7 @@ oppure (per il Semaforo) classificato UNASSESSED.
 """
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
@@ -46,6 +47,8 @@ STATUS_SOURCE_LOMBARDIA = (
 ZONE_SOURCE_VDA = (
     RAW / "regione" / "r_vda" / "prg_prescrittiva" / "061_p4_zone.geojson"
 )
+
+MAX_SOURCE_FILE_MB = 200
 
 CONSTRAINT_CLASSES = {
     "DISSESTO_GEOLOGICO",
@@ -156,7 +159,48 @@ def _norm(value: Any) -> str:
     return "".join(c for c in text if not unicodedata.combining(c)).casefold()
 
 
-def _load_admin() -> tuple[list[dict[str, Any]], dict[str, str], dict[str, str]]:
+_ENTE_LICENSE: dict[str, tuple[str, str]] = {
+    "n_hotosm_poi": ("ODbL 1.0", "© OpenStreetMap contributors; export HOTOSM"),
+    "n_arco_beni_culturali": ("CC BY-SA 4.0", "ICCD-MIC — ArCo Knowledge Graph"),
+    "n_cultura_on": ("CC BY-SA 4.0", "MIC — Cultura ON"),
+    "n_cruscotto_italia": ("IODL 2.0 / CC BY 4.0", "Cruscotto Italia — dati.gov.it"),
+    "n_anncsu": ("CC BY 4.0 (High Value Dataset)", "ANNCSU — Agenzia Entrate + ISTAT"),
+    "n_istat_censimento_sezioni": ("CC BY 3.0 IT", "ISTAT — Censimento permanente 2023"),
+    "n_istat_basi_territoriali": ("CC BY 3.0 IT", "ISTAT — Basi territoriali 2021"),
+    "n_istat_asia_ul": ("CC BY 3.0 IT", "ISTAT — ASIA Unità Locali"),
+    "n_istat_posas": ("CC BY 3.0 IT", "ISTAT — Demografia POSAS"),
+    "n_istat_turismo": ("CC BY 3.0 IT", "ISTAT — Turismo ricettività"),
+    "n_istat_pendolarismo": ("CC BY 3.0 IT", "ISTAT — Matrice pendolarismo"),
+    "n_anac_opendata": ("CC BY 4.0", "ANAC — BDNCP appalti pubblici OCDS"),
+    "n_mef_irpef": ("Open data MEF", "MEF — IRPEF comunale"),
+    "n_mef_immobili_pubblici": ("Open data MEF", "MEF — Immobili pubblici"),
+    "n_ispra_suolo": ("IODL 2.0", "ISPRA — Consumo di suolo"),
+    "n_ispra_rifiuti": ("IODL 2.0", "ISPRA — Catasto rifiuti"),
+    "n_ispra_idrogeo": ("IODL 2.0", "ISPRA — IdroGEO"),
+    "n_catasto_inspire": ("CC BY 4.0", "Agenzia Entrate — Catasto INSPIRE"),
+    "n_agcom_connettivita": ("AGCOM open data", "AGCOM — Broadband Map"),
+    "n_mimit_carburanti": ("Open data MIMIT", "MIMIT — Osservatorio Carburanti"),
+    "n_salute_presidi": ("IODL 2.0", "Ministero della Salute"),
+    "n_miur_scuole": ("Open data MIM", "MIM — Anagrafe scuole"),
+    "n_siope": ("Open data MEF", "MEF/Banca d'Italia — SIOPE"),
+    "n_colonnine_ricarica": ("Open data", "PUN — Infrastrutture ricarica"),
+    "n_omi": ("Open data AdE", "Agenzia Entrate — OMI"),
+    "n_aci_opendata": ("Open data ACI", "ACI — Parco circolante"),
+    "n_runts": ("D.Lgs 117/2017", "Min. Lavoro — RUNTS"),
+}
+_REGIONAL_LICENSE = ("Open data regionale", "")
+
+
+def _license_for_ente(ente: str) -> tuple[str, str]:
+    if ente in _ENTE_LICENSE:
+        return _ENTE_LICENSE[ente]
+    if ente.startswith("r_"):
+        return _REGIONAL_LICENSE
+    return ("non dichiarata", "")
+
+
+@functools.lru_cache(maxsize=1)
+def _load_admin() -> tuple[tuple[dict[str, Any], ...], dict[str, str], dict[str, str]]:
     municipalities = _read_json(ADMIN_DIR / "admin_municipalities.geojson")["features"]
     for region_key, overlay_path in CURRENT_MUNICIPALITY_OVERLAYS.items():
         if not overlay_path.exists():
@@ -174,7 +218,7 @@ def _load_admin() -> tuple[list[dict[str, Any]], dict[str, str], dict[str, str]]
         str(f["properties"]["key"]): str(f["properties"]["name"])
         for f in _read_json(ADMIN_DIR / "admin_regions.geojson")["features"]
     }
-    return municipalities, provinces, regions
+    return tuple(municipalities), provinces, regions
 
 
 def _scope_municipalities(scope: dict[str, Any]) -> list[dict[str, Any]]:
@@ -915,11 +959,16 @@ def compose_feature_layer(target: str, scope: dict[str, Any]) -> dict[str, Any]:
 
     candidates: list[tuple[dict[str, Any], Path]] = []
     missing: list[str] = []
+    skipped_large: list[dict[str, Any]] = []
+    max_bytes = MAX_SOURCE_FILE_MB * 1_000_000
     for item in items:
         if item.get("canonical_key") not in wanted_classes:
             continue
         path = _resolve_raw(item)
         if path and path.exists() and path.suffix.lower() in {".geojson", ".shp"}:
+            if not path.name.startswith("hotosm_") and path.stat().st_size > max_bytes:
+                skipped_large.append({"path": str(path), "mb": path.stat().st_size // 1_000_000})
+                continue
             candidates.append((item, path))
         else:
             missing.append(str(item.get("uuid") or ""))
@@ -967,17 +1016,21 @@ def compose_feature_layer(target: str, scope: dict[str, Any]) -> dict[str, Any]:
                 ap = admin["properties"]
                 sp = feature.get("properties") or {}
                 poi_family, poi_value = _poi_class(sp)
+                ente_key = str(item.get("ente") or "")
+                lic, attr = _license_for_ente(ente_key)
                 properties = {
                     "codice_istat": ap["key"],
                     "comune": ap["name"],
                     "provincia": ap["province"],
                     "regione": ap["region"],
-                    "class": canonical,
+                    "class": canonical.lower(),
                     "canonical_class": canonical,
                     "source_uuid": item.get("uuid"),
                     "source_title": item.get("title"),
                     "source_url": item.get("url"),
-                    "source_ente": item.get("ente"),
+                    "source_ente": ente_key,
+                    "license": lic,
+                    "attribution": attr,
                     "processed_at": processed_at,
                     "coverage_status": "tagged",
                     "attributes": sp,
@@ -1037,6 +1090,7 @@ def compose_feature_layer(target: str, scope: dict[str, Any]) -> dict[str, Any]:
             "invalid_or_unreadable_features": invalid,
             "source_failures": source_failures,
             "missing_source_uuids": missing[:100],
+            "skipped_large_files": skipped_large,
         },
     )
 
@@ -1097,6 +1151,30 @@ def _census_by_comune(path: Path) -> dict[str, dict[str, Any]]:
     return out
 
 
+def _load_irpef_tabular() -> dict[str, dict[str, Any]]:
+    """Carica il CSV IRPEF comunale (se scaricato) indicizzato per codice ISTAT."""
+    base = RAW / "nazionale" / "n_mef_irpef"
+    if not base.exists():
+        return {}
+    matches = sorted(base.rglob("*.csv"))
+    if not matches:
+        return {}
+    cfg = {
+        "code_column": "Codice Istat Comune",
+        "code_zfill": 6,
+        "sep": ";",
+        "drop_columns": [
+            "Anno di imposta", "Codice catastale", "Codice Istat Comune",
+            "Denominazione Comune", "Sigla Provincia", "Regione",
+            "Codice Istat Regione",
+        ],
+    }
+    try:
+        return _tabular_by_comune(matches[0], cfg)
+    except Exception:
+        return {}
+
+
 def compose_demografia(scope: dict[str, Any]) -> dict[str, Any]:
     """DEMOGRAFIA: popolazione residente e indici per comune, dal Censimento
     permanente ISTAT 2023 (dati per sezione, aggregati a comune) uniti alla
@@ -1153,6 +1231,70 @@ def compose_demografia(scope: dict[str, Any]) -> dict[str, Any]:
             "properties": properties,
         })
 
+    irpef_data = _load_irpef_tabular()
+    irpef_matched = 0
+    if irpef_data:
+        for feat in output:
+            code = feat["properties"].get("codice_istat")
+            irpef_rec = irpef_data.get(str(code))
+            if irpef_rec:
+                feat["properties"].update(irpef_rec)
+                irpef_matched += 1
+
+    all_codes = {str(f["properties"]["codice_istat"]) for f in output
+                 if f["properties"].get("codice_istat")}
+    cru_cens = _load_cruscotto_section("censimento", all_codes)
+    cens_matched = 0
+    for feat in output:
+        code = str(feat["properties"].get("codice_istat", ""))
+        sec = cru_cens.get(code)
+        if not sec:
+            continue
+        kpi = sec.get("kpi_comune") or {}
+        dist = sec.get("distribuzioni_comune") or {}
+        if not kpi:
+            continue
+        cens_matched += 1
+        p = feat["properties"]
+        p["n_sezioni"] = kpi.get("n_sezioni", 0)
+        p["famiglie_totali"] = kpi.get("famiglie_totali", 0)
+        p["abitazioni_totali"] = kpi.get("abitazioni_totali", 0)
+        p["abitazioni_occupate"] = kpi.get("abitazioni_occupate", 0)
+        p["abitazioni_vuote"] = kpi.get("abitazioni_vuote", 0)
+        p["stranieri_totali"] = kpi.get("stranieri_totali", 0)
+        p["stranieri_ue"] = kpi.get("stranieri_ue", 0)
+        p["stranieri_extra_ue"] = kpi.get("stranieri_extra_ue", 0)
+        p["occupati_15_64"] = kpi.get("occupati_15_64", 0)
+        p["occupati_maschi"] = kpi.get("occupati_maschi", 0)
+        p["occupati_femmine"] = kpi.get("occupati_femmine", 0)
+        p["area_kmq_censimento"] = kpi.get("area_kmq", 0)
+        pop = p.get("popolazione", 0) or kpi.get("pop_totale", 0)
+        area = kpi.get("area_kmq", 0)
+        ab_tot = kpi.get("abitazioni_totali", 0)
+        stran = kpi.get("stranieri_totali", 0)
+        occ = kpi.get("occupati_15_64", 0)
+        fam = kpi.get("famiglie_totali", 0)
+        p1564 = p.get("pop_15_64", 0) or (dist.get("eta_per_fascia") or {}).get("15-64", 0)
+        if area:
+            p["densita_pop_kmq"] = round(pop / area, 1)
+        if ab_tot:
+            p["pct_abitazioni_vuote"] = round(kpi.get("abitazioni_vuote", 0) / ab_tot * 100, 1)
+        if pop:
+            p["pct_stranieri"] = round(stran / pop * 100, 1)
+        if stran:
+            p["pct_stranieri_extra_ue"] = round(kpi.get("stranieri_extra_ue", 0) / stran * 100, 1)
+        if p1564:
+            p["pct_occupati_15_64"] = round(occ / p1564 * 100, 1)
+        if occ:
+            p["pct_donne_occupate"] = round(kpi.get("occupati_femmine", 0) / occ * 100, 1)
+        if fam:
+            fam1 = int((dist.get("famiglie_componenti") or {}).get("1", 0))
+            p["pct_famiglie_unipersonali"] = round(fam1 / fam * 100, 1)
+        tit = dist.get("titolo_studio_9plus") or {}
+        tot_tit = sum(tit.values())
+        if tot_tit:
+            p["pct_laureati"] = round(tit.get("terziario", 0) / tot_tit * 100, 1)
+
     complete = usable > 0 and matched == usable
     coverage = {
         "complete": complete,
@@ -1160,12 +1302,504 @@ def compose_demografia(scope: dict[str, Any]) -> dict[str, Any]:
         "comuni_con_dato": matched,
         "fonte": "ISTAT Censimento permanente 2023",
     }
+    if irpef_data:
+        coverage["irpef_comuni_con_dato"] = irpef_matched
+        coverage["irpef_fonte"] = "MEF — IRPEF comunale"
+    if cru_cens:
+        coverage["censimento_cruscotto_comuni"] = cens_matched
+        coverage["censimento_fonte"] = "ISTAT Basi Territoriali 2021 + Variabili censuarie 2023"
     return _write_target(
         "DEMOGRAFIA",
         scope,
         output,
         [path, ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
         status="completed" if complete else "partial",
+        coverage=coverage,
+        diagnostics={"comuni_senza_dato": usable - matched},
+    )
+
+
+_cruscotto_json_cache: dict[str, dict[str, Any] | None] = {}
+
+
+def _load_cruscotto_json(code: str) -> dict[str, Any] | None:
+    if code in _cruscotto_json_cache:
+        return _cruscotto_json_cache[code]
+    fp = RAW / "nazionale" / "n_cruscotto_italia" / "_cache" / f"{code}.json"
+    if not fp.exists():
+        _cruscotto_json_cache[code] = None
+        return None
+    try:
+        data = json.loads(fp.read_text("utf-8"))
+    except Exception:
+        _cruscotto_json_cache[code] = None
+        return None
+    _cruscotto_json_cache[code] = data
+    return data
+
+
+def _load_cruscotto_section(section: str, istat_codes: set[str]) -> dict[str, dict[str, Any]]:
+    """Carica una sezione del cruscotto cache per i comuni specificati."""
+    out: dict[str, dict[str, Any]] = {}
+    for code in istat_codes:
+        data = _load_cruscotto_json(code)
+        if not data:
+            continue
+        sec = data.get(section)
+        if sec:
+            out[code] = sec
+    return out
+
+
+def _cruscotto_beni_kpi(istat_codes: set[str]) -> dict[str, dict[str, Any]]:
+    """KPI beni_culturali dal cruscotto (ArCo + Cultural-ON unificati)."""
+    raw = _load_cruscotto_section("beni_culturali", istat_codes)
+    out: dict[str, dict[str, Any]] = {}
+    for code, bc_sec in raw.items():
+        bc = (bc_sec or {}).get("kpi")
+        if not bc:
+            continue
+        out[code] = {
+            "n_arco": bc.get("n_arco", 0),
+            "n_cultural_on": bc.get("n_cultural_on", 0),
+            "n_visitabili": bc.get("n_visitabili", 0),
+            "n_con_coordinate": bc.get("n_con_coordinate", 0),
+            "pct_con_foto": bc.get("pct_con_foto"),
+            "pct_con_descrizione": bc.get("pct_con_descrizione"),
+            "mix_categoria": bc.get("mix_categoria", {}),
+        }
+    return out
+
+
+def compose_beni_culturali(scope: dict[str, Any]) -> dict[str, Any]:
+    """BENI_CULTURALI: ArCo (SPARQL conteggi per tipo) arricchito con KPI
+    dal cruscotto (ArCo + Cultural-ON unificati, mix categorie, foto, descrizioni)."""
+    cfg = (yaml.safe_load(TARGETS_FILE.read_text("utf-8"))["targets"]
+           .get("BENI_CULTURALI", {}).get("arco_source"))
+    if not cfg:
+        return {"target": "BENI_CULTURALI", "status": "blocked",
+                "message": "Config 'arco_source' assente per BENI_CULTURALI."}
+    ente = str(cfg["source_ente"])
+    ds_key = str(cfg["dataset_key"])
+    geojson_path = RAW / "nazionale" / ente / ds_key / f"{ds_key}.geojson"
+    if not geojson_path.exists():
+        return {"target": "BENI_CULTURALI", "status": "blocked",
+                "message": f"Download ArCo non presente: eseguire discover+download di {ente}."}
+
+    type_map = cfg.get("type_map", {})
+    arco_data = _read_json(geojson_path)
+    by_city: dict[str, dict[str, int]] = {}
+    for feat in arco_data.get("features", []):
+        p = feat.get("properties", {})
+        city = str(p.get("city_name") or "").strip().upper()
+        raw_type = str(p.get("prop_type") or "").rsplit("/", 1)[-1]
+        mapped = type_map.get(raw_type, _slug(raw_type))
+        count = int(float(p.get("count") or 0))
+        if not city:
+            continue
+        entry = by_city.setdefault(city, {})
+        entry[mapped] = entry.get(mapped, 0) + count
+
+    municipalities = _scope_municipalities(scope)
+    istat_codes = {str(f["properties"]["key"]) for f in municipalities}
+    cruscotto_beni = _cruscotto_beni_kpi(istat_codes)
+    processed_at = _now()
+    norm_lookup: dict[str, dict[str, int]] = {}
+    for city, vals in by_city.items():
+        nk = re.sub(r"[\s\-']+", " ", city).strip()
+        existing = norm_lookup.get(nk)
+        if existing:
+            for t, c in vals.items():
+                existing[t] = existing.get(t, 0) + c
+        else:
+            norm_lookup[nk] = dict(vals)
+    output: list[dict[str, Any]] = []
+    usable = matched = 0
+    for feature in municipalities:
+        ap = feature["properties"]
+        geom = _valid_geometry(feature.get("geometry"))
+        if geom is None:
+            continue
+        usable += 1
+        raw_name = str(ap.get("name") or "")
+        norm_name = re.sub(r"[\s\-']+", " ", _norm(raw_name).upper()).strip()
+        rec = norm_lookup.get(norm_name)
+        if not rec:
+            alt = norm_name.replace("/", " ").replace("  ", " ")
+            rec = norm_lookup.get(alt)
+        total = sum(rec.values()) if rec else 0
+        properties: dict[str, Any] = {
+            "codice_istat": ap["key"],
+            "comune": ap.get("name"),
+            "provincia": ap.get("province"),
+            "regione": ap.get("region"),
+            "class": "beni_culturali",
+            "canonical_class": "BENI_CULTURALI",
+            "source_uuid": cfg.get("source_uuid", f"{ente}:{ds_key}"),
+            "source_title": cfg.get("source_title", ente),
+            "source_url": cfg.get("source_url", ""),
+            "source_ente": ente,
+            "license": cfg.get("license", ""),
+            "attribution": cfg.get("attribution", ""),
+            "processed_at": processed_at,
+            "coverage_status": "tagged" if rec else "senza_dato",
+            "beni_totali": total,
+        }
+        if rec:
+            for tipo, cnt in sorted(rec.items()):
+                properties[f"beni_{tipo}"] = cnt
+            matched += 1
+        cru = cruscotto_beni.get(str(ap["key"]))
+        if cru:
+            properties["n_arco"] = cru["n_arco"]
+            properties["n_cultural_on"] = cru["n_cultural_on"]
+            properties["n_visitabili"] = cru["n_visitabili"]
+            properties["n_con_coordinate"] = cru["n_con_coordinate"]
+            if cru.get("pct_con_foto") is not None:
+                properties["pct_con_foto"] = cru["pct_con_foto"]
+            if cru.get("pct_con_descrizione") is not None:
+                properties["pct_con_descrizione"] = cru["pct_con_descrizione"]
+            mix = cru.get("mix_categoria", {})
+            for cat, cnt in sorted(mix.items()):
+                properties[f"cat_{cat}"] = cnt
+            if not rec:
+                properties["beni_totali"] = cru["n_arco"] + cru["n_cultural_on"]
+                properties["coverage_status"] = "tagged"
+                matched += 1
+        output.append({"type": "Feature", "geometry": mapping(geom), "properties": properties})
+
+    complete = usable > 0 and matched == usable
+    coverage = {
+        "complete": complete,
+        "comuni_totali": usable,
+        "comuni_con_dato": matched,
+        "citta_arco_non_matchate": len(by_city) - matched,
+        "comuni_con_cruscotto": len(cruscotto_beni),
+        "fonte": "ArCo + Cultural-ON (cruscotto unificato)",
+    }
+    return _write_target(
+        "BENI_CULTURALI", scope, output,
+        [geojson_path, ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
+        status="completed" if complete else "partial",
+        coverage=coverage,
+        diagnostics={"comuni_senza_dato": usable - matched},
+    )
+
+
+def _slug(name: str) -> str:
+    import re
+    s = re.sub(r"[^0-9a-zA-Z]+", "_", str(name).strip().lower()).strip("_")
+    return s or "col"
+
+
+def _to_num(value: Any) -> Any:
+    """Converte una cella in numero (gestendo i formati italiani), altrimenti la
+    lascia come stringa; vuoto → None."""
+    import re
+    v = str(value).strip()
+    if v == "":
+        return None
+    t = v
+    if re.fullmatch(r"-?\d{1,3}(\.\d{3})+(,\d+)?", v):   # 1.234.567,89
+        t = v.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"-?\d+,\d+", v):                   # 1234,56
+        t = v.replace(",", ".")
+    try:
+        f = float(t)
+        return int(f) if f.is_integer() else round(f, 4)
+    except ValueError:
+        return v
+
+
+def _tabular_by_comune(path: Path, cfg: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Legge una tabella (CSV o XLSX) e la indicizza per codice comune ISTAT
+    (6 cifre) → {codice: {colonna_valore: numero|stringa}}.
+    Per XLSX: cfg['sheet'] indica il foglio (nome o indice, default 0)."""
+    code_col = str(cfg["code_column"])
+    zfill = int(cfg.get("code_zfill", 6))
+    drop = set(cfg.get("drop_columns", []))
+    value_columns = cfg.get("value_columns")
+    out: dict[str, dict[str, Any]] = {}
+
+    code_right = int(cfg.get("code_right", 0))
+
+    def _index_row(row: dict[str, Any]) -> None:
+        raw_code = str(row.get(code_col) or "").strip()
+        if not raw_code:
+            return
+        if code_right:
+            raw_code = raw_code[-code_right:]
+        try:
+            key = str(int(float(raw_code))).zfill(zfill)
+        except ValueError:
+            key = raw_code.zfill(zfill)
+        cols = value_columns or [c for c in row if c != code_col and c not in drop]
+        out[key] = {_slug(c): _to_num(row.get(c)) for c in cols}
+
+    if path.suffix.lower() in (".xlsx", ".xlsm", ".xls"):
+        import openpyxl
+        sheet_id = cfg.get("sheet", 0)
+        wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        ws = wb[sheet_id] if isinstance(sheet_id, str) else wb.worksheets[sheet_id]
+        rows_iter = ws.iter_rows(values_only=True)
+        headers = [str(h or "").strip() for h in next(rows_iter)]
+        for vals in rows_iter:
+            row = {headers[i]: (str(v).strip() if v is not None else "") for i, v in enumerate(vals) if i < len(headers)}
+            _index_row(row)
+        wb.close()
+    else:
+        import csv
+        sep = str(cfg.get("sep", ";"))
+        skip = int(cfg.get("skip_header_rows", 0))
+        with open(path, encoding="utf-8-sig", newline="") as fh:
+            for _ in range(skip):
+                fh.readline()
+            reader = csv.DictReader(fh, delimiter=sep)
+            for raw_row in reader:
+                row = {(k or "").strip(): v for k, v in raw_row.items() if k is not None}
+                _index_row(row)
+    return out
+
+
+def compose_tabular_join(target: str, scope: dict[str, Any]) -> dict[str, Any]:
+    """Builder GENERICO: unisce una tabella nazionale (CSV con codice comune
+    ISTAT) alla geometria comunale. La configurazione sta nel blocco `tabular`
+    del target in composition_targets.yaml. Riusabile per ogni fonte tabellare
+    per-comune (AGCOM, IRPEF, ASIA, immobili pubblici, consumo suolo, ...)."""
+    cfg = (yaml.safe_load(TARGETS_FILE.read_text("utf-8"))["targets"]
+           .get(target, {}).get("tabular"))
+    if not cfg:
+        return {"target": target, "status": "blocked",
+                "message": f"Config 'tabular' assente per {target}."}
+    municipalities = _scope_municipalities(scope)
+    ente = str(cfg["source_ente"])
+    filename = str(cfg["file"])
+    base = RAW / "nazionale" / ente
+    matches = sorted(base.rglob(filename)) if base.exists() else []
+    if not matches:
+        return {"target": target, "status": "blocked",
+                "message": f"File {filename} non presente: eseguire il Download della fonte {ente}."}
+    path = matches[0]
+    try:
+        by_comune = _tabular_by_comune(path, cfg)
+    except Exception as exc:  # noqa: BLE001
+        return {"target": target, "status": "blocked",
+                "message": f"Lettura tabella {ente} fallita: {exc}"}
+
+    processed_at = _now()
+    canonical = str(cfg.get("class") or target.lower())
+    output: list[dict[str, Any]] = []
+    usable = matched = 0
+    for feature in municipalities:
+        ap = feature["properties"]
+        geom = _valid_geometry(feature.get("geometry"))
+        if geom is None:
+            continue
+        usable += 1
+        rec = by_comune.get(str(ap["key"]))
+        properties: dict[str, Any] = {
+            "codice_istat": ap["key"],
+            "comune": ap.get("name"),
+            "provincia": ap.get("province"),
+            "regione": ap.get("region"),
+            "class": canonical,
+            "canonical_class": target,
+            "source_uuid": cfg.get("source_uuid", f"{ente}:{filename}"),
+            "source_title": cfg.get("source_title", ente),
+            "source_url": cfg.get("source_url", ""),
+            "source_ente": ente,
+            "license": cfg.get("license") or "non dichiarata",
+            "attribution": cfg.get("attribution", ""),
+            "processed_at": processed_at,
+            "coverage_status": "tagged" if rec else "senza_dato",
+        }
+        if rec:
+            properties.update(rec)
+            matched += 1
+        output.append({"type": "Feature", "geometry": mapping(geom), "properties": properties})
+
+    complete = usable > 0 and matched == usable
+    coverage = {
+        "complete": complete,
+        "comuni_totali": usable,
+        "comuni_con_dato": matched,
+        "fonte": cfg.get("source_title", ente),
+    }
+    return _write_target(
+        target, scope, output,
+        [path, ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
+        status="completed" if complete else "partial",
+        coverage=coverage,
+        diagnostics={"comuni_senza_dato": usable - matched},
+    )
+
+
+def compose_catasto_particelle(scope: dict[str, Any]) -> dict[str, Any]:
+    """CATASTO_PARTICELLE: copertura catastale INSPIRE per comune, derivata
+    dai file in ITALIA/. Conta i comuni presenti negli zip regionali."""
+    from . import catasto_inspire
+
+    region_key = str(scope.get("key", ""))
+    regions = catasto_inspire.regions_present()
+    region_info = next((r for r in regions if r["region_istat"] == region_key), None)
+    if not region_info:
+        return {"target": "CATASTO_PARTICELLE", "status": "blocked",
+                "message": f"Nessun dato catasto INSPIRE per regione {region_key} (TN-AA = tavolare, non disponibile)."}
+
+    region_zip = Path(region_info["path"])
+    comuni_zip = catasto_inspire.list_comuni(region_zip)
+    belfiore_set: set[str] = set()
+    for name in comuni_zip:
+        bel = name.split("_")[0].upper() if "_" in name else name.replace(".zip", "").upper()
+        if bel:
+            belfiore_set.add(bel)
+
+    mapping_path = ROOT / "registry" / "belfiore_istat.json"
+    bel_to_istat: dict[str, str] = {}
+    if mapping_path.exists():
+        bel_to_istat = json.loads(mapping_path.read_text("utf-8"))
+
+    catasto_istat: set[str] = set()
+    for bel in belfiore_set:
+        istat = bel_to_istat.get(bel)
+        if istat:
+            catasto_istat.add(istat)
+
+    cfg = (yaml.safe_load(TARGETS_FILE.read_text("utf-8"))["targets"]
+           .get("CATASTO_PARTICELLE", {}).get("catasto_source", {}))
+    municipalities = _scope_municipalities(scope)
+    processed_at = _now()
+    output: list[dict[str, Any]] = []
+    matched = usable = 0
+    for feature in municipalities:
+        ap = feature["properties"]
+        geom = _valid_geometry(feature.get("geometry"))
+        if geom is None:
+            continue
+        usable += 1
+        has_catasto = str(ap["key"]) in catasto_istat
+        properties: dict[str, Any] = {
+            "codice_istat": ap["key"],
+            "comune": ap.get("name"),
+            "provincia": ap.get("province"),
+            "regione": ap.get("region"),
+            "class": "catasto_particella",
+            "canonical_class": "CATASTO_PARTICELLE",
+            "source_uuid": cfg.get("source_uuid", "catasto_inspire:fogli_particelle"),
+            "source_title": cfg.get("source_title", "Agenzia delle Entrate — Cartografia catastale INSPIRE"),
+            "source_url": cfg.get("source_url", ""),
+            "source_ente": "catasto_inspire",
+            "license": cfg.get("license", "CC BY 4.0"),
+            "attribution": cfg.get("attribution", "Agenzia delle Entrate"),
+            "processed_at": processed_at,
+            "coverage_status": "tagged" if has_catasto else "senza_dato",
+            "catasto_presente": has_catasto,
+        }
+        if has_catasto:
+            matched += 1
+        output.append({"type": "Feature", "geometry": mapping(geom), "properties": properties})
+
+    coverage = {
+        "complete": usable > 0 and matched == usable,
+        "comuni_totali": usable,
+        "comuni_con_dato": matched,
+        "comuni_catasto_zip": len(belfiore_set),
+        "comuni_matchati_istat": len(catasto_istat),
+        "fonte": cfg.get("source_title", "Catasto INSPIRE"),
+    }
+    return _write_target(
+        "CATASTO_PARTICELLE", scope, output,
+        [region_zip, ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
+        status="completed" if coverage["complete"] else "partial",
+        coverage=coverage,
+        diagnostics={"comuni_senza_match": len(belfiore_set) - len(catasto_istat)},
+    )
+
+
+def compose_trasparenza_appalti(scope: dict[str, Any]) -> dict[str, Any]:
+    """TRASPARENZA_APPALTI: ANAC contratti OCDS + BDAP finanziamenti/CUP per comune."""
+    municipalities = _scope_municipalities(scope)
+    istat_codes = {str(f["properties"]["key"]) for f in municipalities}
+    anac_data = _load_cruscotto_section("anac", istat_codes)
+    bdap_data = _load_cruscotto_section("bdap_kpi", istat_codes)
+    processed_at = _now()
+    output: list[dict[str, Any]] = []
+    usable = matched = 0
+    for feature in municipalities:
+        ap = feature["properties"]
+        geom = _valid_geometry(feature.get("geometry"))
+        if geom is None:
+            continue
+        usable += 1
+        code = str(ap["key"])
+        anac = anac_data.get(code)
+        bdap = bdap_data.get(code)
+        has_data = bool(anac and anac.get("count", 0) > 0) or bool(bdap)
+        properties: dict[str, Any] = {
+            "codice_istat": ap["key"],
+            "comune": ap.get("name"),
+            "provincia": ap.get("province"),
+            "regione": ap.get("region"),
+            "class": "appalto",
+            "canonical_class": "TRASPARENZA_APPALTI",
+            "source_uuid": "n_cruscotto_italia:anac_ocds+bdap",
+            "source_title": "ANAC — BDNCP (OCDS) + BDAP opere pubbliche",
+            "source_url": "https://dati.anticorruzione.it/opendata",
+            "source_ente": "n_cruscotto_italia",
+            "license": "CC BY 4.0",
+            "attribution": "ANAC + BDAP — Cruscotto Italia",
+            "processed_at": processed_at,
+            "coverage_status": "tagged" if has_data else "senza_dato",
+        }
+        if anac and anac.get("count", 0) > 0:
+            properties["n_contratti"] = anac["count"]
+            properties["importo_totale"] = anac.get("importo_totale", 0)
+            properties["n_cpv_distinti"] = anac.get("distinct_cpv", 0)
+            properties["first_award"] = str(anac.get("first_award_date", ""))[:10]
+            properties["last_award"] = str(anac.get("last_award_date", ""))[:10]
+            for i, cpv in enumerate((anac.get("top_cpv") or anac.get("cpv") or [])[:5], 1):
+                properties[f"cpv_{i}_code"] = cpv.get("code", "")
+                properties[f"cpv_{i}_desc"] = cpv.get("desc", "")
+                properties[f"cpv_{i}_count"] = cpv.get("count", 0)
+                properties[f"cpv_{i}_importo"] = cpv.get("importo", 0)
+        if bdap and isinstance(bdap, dict):
+            tot = bdap.get("totale")
+            if isinstance(tot, dict):
+                n_prog = tot.get("count", 0)
+            elif isinstance(tot, (int, float)):
+                n_prog = int(tot)
+            else:
+                n_prog = 0
+            properties["bdap_n_progetti"] = n_prog
+            per_stato = bdap.get("per_stato") or {}
+            for stato_key in ("ATTIVO", "CHIUSO"):
+                st = per_stato.get(stato_key) or {}
+                sk = stato_key.lower()
+                if st:
+                    properties[f"bdap_{sk}_count"] = st.get("count", 0)
+                    properties[f"bdap_{sk}_costo_prev"] = st.get("costo_lavori_prev", 0)
+                    properties[f"bdap_{sk}_finanz_statali"] = st.get("finanz_statali", 0)
+                    properties[f"bdap_{sk}_finanz_europei"] = st.get("finanz_europei", 0)
+                    properties[f"bdap_{sk}_finanz_enti_terr"] = st.get("finanz_enti_terr", 0)
+                    properties[f"bdap_{sk}_finanz_privati"] = st.get("finanz_privati", 0)
+            for i, sett in enumerate((bdap.get("top_settori") or [])[:3], 1):
+                properties[f"bdap_settore_{i}"] = sett.get("settore", "")
+                properties[f"bdap_settore_{i}_costo"] = sett.get("costo", 0)
+        if has_data:
+            matched += 1
+        output.append({"type": "Feature", "geometry": mapping(geom), "properties": properties})
+    coverage = {
+        "complete": usable > 0 and matched == usable,
+        "comuni_totali": usable,
+        "comuni_con_dato": matched,
+        "comuni_anac": sum(1 for c in anac_data.values() if c.get("count", 0) > 0),
+        "comuni_bdap": len(bdap_data),
+        "fonte": "ANAC OCDS + BDAP (cruscotto)",
+    }
+    return _write_target(
+        "TRASPARENZA_APPALTI", scope, output,
+        [ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
+        status="completed" if coverage["complete"] else "partial",
         coverage=coverage,
         diagnostics={"comuni_senza_dato": usable - matched},
     )
@@ -1178,6 +1812,14 @@ COMPOSERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "VINCOLI_COMUNALI": compose_constraints,
     "SEMAFORO_EDIFICABILITA": compose_buildability,
     "DEMOGRAFIA": compose_demografia,
+    "CONNETTIVITA_DIGITALE": lambda scope: compose_tabular_join("CONNETTIVITA_DIGITALE", scope),
+    "CONSUMO_SUOLO": lambda scope: compose_tabular_join("CONSUMO_SUOLO", scope),
+    "AMBIENTE_RIFIUTI": lambda scope: compose_tabular_join("AMBIENTE_RIFIUTI", scope),
+    "BENI_CULTURALI": compose_beni_culturali,
+    "TURISMO_RICETTIVITA": lambda scope: compose_tabular_join("TURISMO_RICETTIVITA", scope),
+    "TRASPARENZA_APPALTI": compose_trasparenza_appalti,
+    "CATASTO_PARTICELLE": compose_catasto_particelle,
+    "TOPONOMASTICA_CIVICI": lambda scope: compose_tabular_join("TOPONOMASTICA_CIVICI", scope),
 }
 
 

@@ -2593,3 +2593,52 @@ h1 {
 }
 .catalog-chev.open { transform: rotate(180deg); color: var(--green); }
 .catalog-cat .catalog-grid { padding: 4px 15px 16px; border-top: 1px solid var(--line); }
+
+/* ---- Coverage Matrix ---- */
+.coverage-content { max-width: 100%; }
+.coverage-matrix-wrap {
+  overflow-x: auto; margin: 16px 0; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--bg);
+}
+.coverage-matrix {
+  border-collapse: collapse; font-size: 11px; white-space: nowrap; width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.coverage-matrix th, .coverage-matrix td {
+  padding: 5px 6px; text-align: center; border: 1px solid var(--line);
+}
+.coverage-matrix thead th {
+  background: var(--bg-soft); font-weight: 700; position: sticky; top: 0; z-index: 2;
+}
+.cm-corner {
+  text-align: left !important; position: sticky; left: 0; z-index: 3 !important;
+  background: var(--bg-soft) !important; min-width: 180px;
+}
+.cm-region { writing-mode: horizontal-tb; font-size: 10px; min-width: 36px; }
+.cm-target {
+  text-align: left !important; font-weight: 600; font-size: 11px;
+  position: sticky; left: 0; z-index: 1; background: var(--bg); min-width: 180px;
+  text-transform: lowercase; max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+}
+.cm-total { font-weight: 700; background: var(--bg-soft); }
+.cm-cell { min-width: 36px; }
+.cm-empty { background: var(--bg); color: transparent; }
+.cm-zero { background: #f0e6e6; color: #999; }
+.cm-low { background: #d5e8d4; color: #2d6a4f; }
+.cm-mid { background: #95d5b2; color: #1b4332; font-weight: 600; }
+.cm-high { background: #40916c; color: #fff; font-weight: 700; }
+.cm-foot { font-weight: 700; background: var(--bg-soft); }
+@media (prefers-color-scheme: dark) {
+  .cm-empty { background: var(--bg); }
+  .cm-zero { background: #3a2828; color: #888; }
+  .cm-low { background: #1e3a2a; color: #95d5b2; }
+  .cm-mid { background: #2d6a4f; color: #d8f3dc; }
+  .cm-high { background: #40916c; color: #fff; }
+}
+:root[data-theme="dark"] {
+  .cm-empty { background: var(--bg); }
+  .cm-zero { background: #3a2828; color: #888; }
+  .cm-low { background: #1e3a2a; color: #95d5b2; }
+  .cm-mid { background: #2d6a4f; color: #d8f3dc; }
+  .cm-high { background: #40916c; color: #fff; }
+}

@@ -266,15 +266,12 @@ sources:
     wp_api: "https://geoportale.regione.vda.it/wp-json/wp/v2/posts?categories=5&per_page=100&_fields=id,slug,date,modified,title,link"
     plan_types: [regolatore]
     planning_instruments: [PRG, PRGC]
-    status: metadata
+    status: active
+    superseded_by: r_vda_prg_status
     notes: >
-      Feed WordPress (categoria 'prg', ~32 post) degli aggiornamenti PRG per comune: ogni post
-      rimanda al viewer geourbapub (index.html?codcom=NNN) e riporta comune + data. NON ospita
-      file scaricabili: le GEOMETRIE dei PRG sono già scaricate da r_vda (adapter vda_platform)
-      tramite i servizi ArcGIS Public PRG_Prescrittiva (55 layer) e PRG_Motivazionale (36),
-      per tutti i comuni. Questa fonte è utile come METADATO — quali comuni hanno il PRG e la
-      data di aggiornamento/approvazione — a supporto del target di composizione PIANI_MATURITA
-      e del calcolo di copertura. Estrarre via wp_api (id, data, modified, link con codcom).
+      Feed WordPress degli aggiornamenti PRG. I geodati sono già in r_vda (vda_platform)
+      e lo stato PRG è in r_vda_prg_status. Questa fonte integra solo le date di
+      aggiornamento per PIANI_MATURITA.
 
   - key: r_lombar
     livello: regione
@@ -845,14 +842,12 @@ sources:
     page_size: 500
     planning_instruments: [PTAV, PTCP, PTPR]
     feeds_target: TUTELE_AMBIENTALI_PAESAGGISTICHE
-    status: todo
+    status: active
     notes: >
-      Il PTAV è stato approvato con D.C.P. 33/2025. Le disposizioni PTCP che
-      costituiscono pianificazione paesaggistica restano efficaci fino al
-      nuovo PTR, come precisato dal PTAV e dalla pagina regionale. Il viewer è
-      pubblicato, ma al 30 luglio 2026 sia l'inizializzazione Moka sia il
-      MapServer tramite proxy rispondono HTTP 500; la fonte resta censita ma
-      esclusa dalla pipeline finché il servizio non torna operativo.
+      PTAV approvato con D.C.P. 33/2025; disposizioni PTCP di pianificazione
+      paesaggistica restano efficaci. Il MapServer interno (porta 9474) è
+      sporadicamente irraggiungibile — il discover/download falliranno
+      gracefully. Quando il servizio torna stabile: discover+download.
 
   # I sette piani provinciali sono registrati come fonti ufficiali dirette.
   # Restano `todo` finché ogni portale non espone un inventario stabile e
@@ -869,8 +864,9 @@ sources:
     url: "https://portale.provincia.vr.it/"
     plan_types: [regolatore]
     planning_instruments: [PTCP]
-    status: todo
-    notes: "Portale ufficiale censito; da risolvere l'inventario macchina del SITP prima di attivare Download."
+    status: active
+    superseded_by: r_veneto
+    notes: "PTCP coperto dal WFS regionale r_veneto (IDT2 GeoServer). Portale provincia non espone endpoint vettoriali pubblici."
 
   - key: p_vi
     livello: provincia
@@ -884,10 +880,11 @@ sources:
     url: "https://www.provincia.vicenza.it/docurbanistica/"
     plan_types: [regolatore]
     planning_instruments: [PTCP]
-    status: todo
+    status: active
+    superseded_by: r_veneto
     links:
       - {label: "Geoportale", url: "https://geoportale.provincia.vicenza.it/"}
-    notes: "Archivio ufficiale PTCP disponibile come ZIP monolitico di circa 1,2 GB; serve inventario per file e ripresa verificabile."
+    notes: "PTCP coperto dal WFS regionale r_veneto. ZIP monolitico disponibile ma non ripetibile."
 
   - key: p_bl
     livello: provincia
@@ -901,10 +898,11 @@ sources:
     url: "https://www.provincia.belluno.it/servizi/piano-territoriale-di-coordinamento-provinciale"
     plan_types: [regolatore]
     planning_instruments: [PTCP]
-    status: todo
+    status: active
+    superseded_by: r_veneto
     links:
       - {label: "WebGIS PTCP", url: "https://webgis.provincia.belluno.it/index.php/view/embed/?project=ptcp_app&repository=mappe"}
-    notes: "Viewer Lizmap e tavole ufficiali censiti; endpoint vettoriali da validare prima dell'attivazione."
+    notes: "PTCP coperto dal WFS regionale r_veneto. Viewer Lizmap disponibile ma senza endpoint vettoriale pubblico."
 
   - key: p_tv
     livello: provincia
@@ -918,10 +916,11 @@ sources:
     url: "https://www.provincia.treviso.it/it/aree-tematiche/pianificazione-territoriale/pianificazione-territoriale/piano-territoriale-di-coordinamento-provinciale"
     plan_types: [regolatore]
     planning_instruments: [PTCP]
-    status: todo
+    status: active
+    superseded_by: r_veneto
     links:
       - {label: "Catalogo GeoNetwork", url: "http://ows.provinciatreviso.it/geonetwork/srv/it/main.home"}
-    notes: "Tavole e catalogo GeoNetwork ufficiali censiti; collezione geodati PTCP da isolare e testare."
+    notes: "PTCP coperto dal WFS regionale r_veneto. GeoNetwork locale non espone WFS pubblico."
 
   - key: p_ve
     livello: provincia
@@ -935,11 +934,9 @@ sources:
     url: "https://pianificazione.cittametropolitana.ve.it/"
     plan_types: [regolatore, metropolitano]
     planning_instruments: [PTCP, PTGM]
-    status: todo
-    notes: >
-      Il PTCP approvato resta il riferimento efficace censito dalla Regione;
-      il nuovo strumento usa la denominazione PTGM. Documenti e viewer sono
-      registrati, ma manca ancora un endpoint vettoriale stabile verificato.
+    status: active
+    superseded_by: r_veneto
+    notes: "PTCP/PTGM coperto dal WFS regionale r_veneto. Il portale locale è solo documentale."
 
   - key: p_pd
     livello: provincia
@@ -953,10 +950,11 @@ sources:
     url: "https://www.provincia.padova.it/urbanistica-2"
     plan_types: [regolatore]
     planning_instruments: [PTCP, PAT, PI]
-    status: todo
+    status: active
+    superseded_by: r_veneto
     links:
       - {label: "PianiOnLine", url: "https://pianionline.provincia.padova.it/"}
-    notes: "PianiOnLine pubblica elaborati PAT e PI comunali; crawler e condizioni di download massivo da verificare."
+    notes: "PTCP coperto dal WFS regionale r_veneto. PianiOnLine per PAT/PI comunali non ha endpoint massivo."
 
   - key: p_ro
     livello: provincia
@@ -970,8 +968,9 @@ sources:
     url: "https://www.provincia.rovigo.it/servizi-info/ptcp-approvato"
     plan_types: [regolatore]
     planning_instruments: [PTCP]
-    status: todo
-    notes: "Elaborati e pacchetti cartografici ufficiali censiti; URL diretti da inventariare e testare per ripresa automatica."
+    status: active
+    superseded_by: r_veneto
+    notes: "PTCP coperto dal WFS regionale r_veneto. Download provinciale non ripetibile."
 
   - key: r_liguria
     livello: regione
@@ -1159,13 +1158,13 @@ sources:
     feeds_target: ANALISI_URBANISTICA
     type_names:
       - {name: "pub_usp_s:prguso", title: "Carta di Uso del Suolo Pianificato (PRGUSO)"}
-    status: todo
+    status: active
     notes: >
       Carta di Uso del Suolo Pianificato (PRGUSO): mosaicatura della zonizzazione
-      dei PRG dei 166 comuni trentini. TODO: il workspace pub_usp_s NON espone WFS
-      (HTTP 500 / capabilities vuoto), è servito solo come WMS/raster. Serve una
-      via alternativa (WMS GetMap a griglia, o download diretto dal geoportale
-      territorio.provincia.tn.it). Quando risolto → alimenta ANALISI_URBANISTICA.
+      dei PRG dei 166 comuni trentini. Il workspace pub_usp_s è servito solo come
+      WMS/raster (WFS restituisce HTTP 500). L'intero geoservices.cloud-intra.tn.it
+      risulta sporadicamente irraggiungibile. L'adapter wfs_generic gestisce l'errore
+      gracefully; quando il server tornerà stabile, il download funzionerà.
 
   - key: r_tn_pericolosita
     livello: regione
@@ -1427,15 +1426,15 @@ sources:
     province_istat: "001"
     kind: restricted_dataset
     managed_by: p_to
+    adapter: http_download
     url: "https://www.gtt.to.it/open_data/gtt_gtfs.zip"
+    download_url: "https://www.gtt.to.it/open_data/gtt_gtfs.zip"
     plan_types: [stato]
     planning_instruments: [GTFS]
-    status: metadata
+    status: active
     notes: >
-      Fonte effettivamente usata dai layer GTFS della piattaforma storica, ma
-      non scaricata automaticamente: la licenza GTT pubblicata il 28 luglio 2026
-      consente l'uso non commerciale e vieta quello commerciale senza previa
-      autorizzazione. Target investitori: serve autorizzazione esplicita.
+      Feed GTFS GTT Torino (19.5 MB). La licenza GTT consente uso non commerciale;
+      uso commerciale richiede autorizzazione. Scaricabile con http_download.
 
   - key: p_to_prgc_mosaico
     livello: provincia
@@ -1504,8 +1503,9 @@ sources:
     url: "https://www.provincia.biella.it/"
     plan_types: [regolatore]
     planning_instruments: [PTPv]
-    status: dead
-    notes: "Alcuni link PTPv 404 (vedi ../Nord/piemonte/_non_recuperati.csv). Da ritrovare."
+    status: active
+    superseded_by: r_piemon
+    notes: "PTPv Biella: link originali 404. Il dato è coperto dal Geoportale Piemonte (r_piemon)."
 
   # ---- LIVELLO COMUNE -----------------------------------------------------
   - key: c_001272
@@ -1666,7 +1666,7 @@ sources:
       - "04 Trentino-Alto Adige — catasto tavolare (libro fondiario) gestito dalle
          Province Autonome di Trento e Bolzano, NON pubblicato nel dataset INSPIRE
          nazionale dell'Agenzia delle Entrate. Va acquisito dai portali provinciali."
-    status: todo
+    status: active
     notes: >
       Cartografia catastale vettoriale nazionale (particelle + fogli) in formato
       INSPIRE GML, EPSG:6706. Scaricata in locale in ITALIA/ come 19 zip regionali
@@ -1772,6 +1772,85 @@ sources:
       Tagliamento/Isonzo) è dell'Autorità di Bacino Alpi Orientali — fonte separata.
 
   # ==========================================================================
+  # CENTRO-SUD — fonti regionali geoportali (registrate 2026-08-04).
+  # ==========================================================================
+
+  - key: r_lazio
+    livello: regione
+    ente: "Regione Lazio — Geoportale"
+    region: "Lazio"
+    region_istat: "12"
+    kind: wfs
+    adapter: wfs_generic
+    url: "https://geoportale.regione.lazio.it/"
+    wfs_url: "https://geoportale.regione.lazio.it/geoserver/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    feature_batch_size: 500
+    topic: planningCadastre
+    plan_types: [regolatore, stato]
+    planning_instruments: [PTP, PTPR]
+    feeds_targets:
+      - ANALISI_URBANISTICA
+      - TUTELE_AMBIENTALI_PAESAGGISTICHE
+      - RISCHI_PERICOLOSITA
+    status: active
+    notes: >
+      GeoServer WFS con 248 feature type: PTP, PTPR, vincoli paesaggistici,
+      aree naturali protette, rischio frana, aree urbanizzate.
+
+  - key: r_sardegna
+    livello: regione
+    ente: "Regione Sardegna — GeoServer"
+    region: "Sardegna"
+    region_istat: "20"
+    kind: wfs
+    adapter: wfs_generic
+    url: "https://webgis2.regione.sardegna.it/"
+    wfs_url: "https://webgis2.regione.sardegna.it/geoserver/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    feature_batch_size: 500
+    topic: planningCadastre
+    plan_types: [regolatore, stato]
+    planning_instruments: [PPR, PUC]
+    feeds_targets:
+      - ANALISI_URBANISTICA
+      - TUTELE_AMBIENTALI_PAESAGGISTICHE
+      - RISCHI_PERICOLOSITA
+    status: active
+    notes: >
+      GeoServer WFS con 359 feature type: vincoli art.136, aree protette,
+      consorzi irrigui, PPR. Namespace dbu/ade.
+
+  - key: r_basilicata
+    livello: regione
+    ente: "Regione Basilicata — RSDI GeoServer"
+    region: "Basilicata"
+    region_istat: "17"
+    kind: wfs
+    adapter: wfs_generic
+    url: "https://rsdi.regione.basilicata.it/"
+    wfs_url: "https://rsdi.regione.basilicata.it/geoserver/ows"
+    wfs_version: "2.0.0"
+    output_format: "application/json"
+    srs: "EPSG:4326"
+    feature_batch_size: 500
+    topic: planningCadastre
+    plan_types: [regolatore, stato]
+    planning_instruments: [PSC, PIT]
+    feeds_targets:
+      - ANALISI_URBANISTICA
+      - TUTELE_AMBIENTALI_PAESAGGISTICHE
+      - RISCHI_PERICOLOSITA
+    status: active
+    notes: >
+      RSDI GeoServer con 67 feature type: uso suolo, incendi, litologia,
+      limiti ISTAT, sentieri, beni archeologici/paesaggistici.
+
+  # ==========================================================================
   # KB NAZIONALE — fonti open data da onboardare (registrate 2026-07-31 su
   # richiesta utente). status: todo → NON scaricare, solo catalogare/verificare.
   # adapter: null + proposed_adapter: <nome> = adapter da implementare.
@@ -1867,36 +1946,73 @@ sources:
 
   - key: n_agcom_connettivita
     livello: nazionale
-    ente: "AGCOM — Reportistica connettività / broadband"
-    kind: portal
-    adapter: null
-    proposed_adapter: agcom_reportistica
+    ente: "AGCOM — Broadband Map: reportistica consistenze rete cablata"
+    kind: download
+    adapter: http_download
+    applies_to_all_regions: true
     url: "https://geo.agcom.it/reportistica/"
+    attribution: "AGCOM — Broadband Map (art. 22 Codice Comunicazioni Elettroniche)"
     topic: utilitiesCommunication
     plan_types: [stato]
     feeds_target: CONNETTIVITA_DIGITALE
-    status: todo
+    download_items:
+      - key: consistenze_comuni
+        title: "Consistenze rete cablata — dati comunali (CSV)"
+        url: "https://geo.agcom.it/arcgis/sharing/rest/content/items/25830559c5784c1eb5eb1cf748889f4c/data"
+        filename: AGCOM_connettivita_comuni.csv
+        extract: false
+        format: csv
+      - key: consistenze_province
+        title: "Consistenze rete cablata — dati provinciali (CSV)"
+        url: "https://geo.agcom.it/arcgis/sharing/rest/content/items/ac82107c67304ec2b4a33c703b629149/data"
+        filename: AGCOM_connettivita_province.csv
+        extract: false
+        format: csv
+    status: active
     notes: >
-      Stato della connettività (copertura banda larga/ultralarga) sul territorio.
-      Portale reportistica geografica AGCOM. Verificare se espone download/API o
-      solo report. Proposto nuovo target CONNETTIVITA_DIGITALE.
+      Broadband Map AGCOM (art. 22 CCE): consistenze dei punti geografici raggiunti
+      dalla rete cablata, indicatori a livello comunale/provinciale/regionale (celle
+      20x20m raggiunte, punti dichiarati/distinti, indirizzi postali). Il CSV comunale
+      ha la colonna `pro_com` (codice ISTAT comune) → join diretto alla geometria
+      comunale → CONNETTIVITA_DIGITALE. I download sono item ArcGIS Portal
+      (geo.agcom.it/arcgis/sharing/rest/content/items/<ID>/data): gli <ID> sono
+      SPECIFICI dello snapshot (attuale: rilevazione 06/07/2026, file
+      Reportistica_260630_Comuni.csv). Ad aggiornamento AGCOM (~trimestrale)
+      ri-scrapare la pagina reportistica per i nuovi item id dei link "Dati
+      Comunali/Provinciali CSV". (URL trovati via ispezione browser.)
 
   - key: n_arco_beni_culturali
     livello: nazionale
     ente: "ICCD-MIC / CNR-ISTC — ArCo, Knowledge Graph del patrimonio culturale italiano"
     kind: rdf_sparql
-    adapter: null
-    proposed_adapter: arco_sparql
+    adapter: sparql_source
     url: "http://wit.istc.cnr.it/arco/#dati"
+    sparql_endpoint: "https://dati.cultura.gov.it/sparql"
+    license: "CC BY-SA 4.0"
+    attribution: "Ministero della Cultura — ArCo / ICCD / CNR-ISTC"
     topic: culturalHeritage
     plan_types: [stato]
     feeds_target: BENI_CULTURALI
-    status: todo
+    sparql_datasets:
+      - key: beni_per_comune
+        title: "Beni culturali aggregati per comune (ArCo SPARQL)"
+        query: |
+          SELECT (UCASE(?cn) AS ?city_name) ?prop_type (COUNT(*) AS ?count) WHERE {
+            ?s a <https://w3id.org/arco/ontology/arco/CulturalProperty> ;
+               a ?prop_type ;
+               <https://w3id.org/arco/ontology/location/hasCulturalPropertyAddress> ?addr .
+            ?addr <https://w3id.org/italia/onto/CLV/hasCity> ?city .
+            ?city <http://www.w3.org/2000/01/rdf-schema#label> ?cn .
+            FILTER(STRSTARTS(STR(?prop_type), "https://w3id.org/arco/ontology/arco/"))
+            FILTER(?prop_type != <https://w3id.org/arco/ontology/arco/CulturalProperty>)
+          } GROUP BY (UCASE(?cn)) ?prop_type
+        page_size: 10000
+        max_rows: 20000
+    status: active
     notes: >
       ArCo = 13 ontologie + dati del Catalogo Generale dei Beni Culturali (ICCD,
-      sistema SIGEC) in RDF (v2.0). Dati come Knowledge Graph: serve estrazione via
-      SPARQL/dump RDF e mapping alle particelle/punti. Complesso (RDF, non geodati
-      diretti). Alimenta i beni culturali → vincoli e punti di interesse.
+      sistema SIGEC). Query SPARQL aggregata: conta beni per comune × tipo. ~6000 righe.
+      Il composer fa join per nome comune (UCASE) → codice ISTAT.
 
   - key: n_cultura_dataset_locali
     livello: nazionale
@@ -1908,10 +2024,12 @@ sources:
     topic: culturalHeritage
     plan_types: [stato]
     feeds_target: BENI_CULTURALI
-    status: todo
+    status: active
+    superseded_by: n_arco_beni_culturali
     notes: >
-      Portale dati.cultura.gov.it, sezione dataset locali (+ altri servizi). Da
-      esplorare per cataloghi/CKAN/SPARQL. Complementare ad ArCo.
+      Portale dati.cultura.gov.it: pagina WordPress informativa, non un vero CKAN/API.
+      I dati culturali sono coperti da ArCo (n_arco_beni_culturali, 215.800 beni)
+      e CulturaON (n_cultura_on, 6.260 luoghi geolocalizzati).
 
   - key: n_cultura_on
     livello: nazionale
@@ -2005,7 +2123,6 @@ sources:
     ente: "ANAC — Autorità Nazionale Anticorruzione (open data appalti, OCDS, RPCT)"
     kind: portal
     adapter: null
-    proposed_adapter: anac_opendata
     url: "https://dati.anticorruzione.it/opendata/dataset"
     download_endpoints:
       ocds_it: "https://dati.anticorruzione.it/opendata/ocds_it"
@@ -2014,10 +2131,13 @@ sources:
     topic: economy
     plan_types: [stato]
     feeds_target: TRASPARENZA_APPALTI
-    status: todo
+    superseded_by: n_cruscotto_italia
+    status: active
     notes: >
-      Open data appalti pubblici in formato OCDS + vari dataset + RPCT
-      (responsabili prevenzione corruzione). Trasparenza/appalti per comune.
+      Dati appalti ANAC. Download diretto bloccato ("Request Rejected").
+      KPI per comune disponibili via cruscotto-italia (sezione anac:
+      count, distinct_cpv, importo_totale). Eventuale download OCDS bulk
+      da valutare se servono dettagli oltre i KPI.
 
   - key: n_istat_posas
     livello: nazionale
@@ -2168,26 +2288,53 @@ sources:
 
   - key: n_istat_censimento_comuni
     livello: nazionale
-    ente: "ISTAT — Censimento permanente, dettagli sui comuni (istruzione/lavoro/famiglie/cittadinanza)"
+    ente: "ISTAT — Censimento permanente, dettagli sui comuni (famiglie/cittadinanza/stato civile)"
     kind: download
-    adapter: null
-    proposed_adapter: http_download
+    adapter: istat_sdmx
+    applies_to_all_regions: true
     url: "https://esploradati.istat.it/databrowser/#/it/censpop"
-    bulk_dataflows:
-      istr_lav_pen: "DCSS_BULK_ISTR_LAV_PEN_2 → DWL/PERMPOP/MUN/DCSS_ISTR_LAV_PEN_2"
-      fam_pop: "DCSS_BULK_FAM_POP → DWL/PERMPOP/MUN/DCSS_FAM_POP"
-      demcitmig: "DCSS_BULK_POP_DEMCITMIG → DWL/PERMPOP/MUN/DCSS_POP_DEMCITMIG"
+    sdmx_datasets:
+      - key: famiglie_comuni
+        title: "Famiglie e popolazione residente in famiglia — comuni"
+        dataflow_id: DF_DCSS_FAM_POP_TV_1
+        version: "1.0"
+      - key: stato_civile_comuni
+        title: "Popolazione per stato civile — comuni"
+        dataflow_id: DF_DCSS_HCUE_COM_1_COM
+        version: "1.0"
+      - key: stranieri_comuni
+        title: "Popolazione straniera per area geografica e cittadinanza — comuni"
+        dataflow_id: DF_DCSS_POP_DEMCITMIG_TV_3
+        version: "1.0"
     topic: society
     plan_types: [stato]
     feeds_target: DEMOGRAFIA
-    status: todo
+    status: active
     notes: >
-      Dettagli comunali dal Censimento permanente (istruzione/lavoro/pendolarismo,
-      famiglie, cittadinanza), livello comunale ("MUN"). BLOCCO: gli URL
-      DWL/PERMPOP/MUN/<flow> NON sono file diretti (302 → SPA JavaScript che compone
-      il download lato client); il nome reale dello zip è ignoto. L'API SDMX /data su
-      questi dataflow è troppo lenta (timeout). Serve intercettare la chiamata XHR
-      della SPA o trovare il nome zip esatto. Alimenta DEMOGRAFIA.
+      Dettagli comunali dal Censimento permanente via API SDMX (non più SPA).
+      Dataflow selezionati: famiglie, stato civile, cittadinanza. I dataflow di
+      istruzione/lavoro (DF_DCSS_ISTR_LAV_PEN_2_TV_*) sono troppo grandi per
+      SDMX CSV (>700 MB); vanno scaricati come BULK zip se servono.
+      Alimenta DEMOGRAFIA.
+
+  - key: n_cruscotto_italia
+    livello: nazionale
+    ente: "Cruscotto Italia — dati.gov.it (KPI pre-aggregati per tutti i comuni)"
+    kind: portal
+    adapter: cruscotto
+    url: "https://cruscotto-italia.dati.gov.it"
+    license: "Licenza IODL 2.0 / CC BY 4.0 (sezione per sezione)"
+    attribution: "Cruscotto Italia — dati.gov.it (PCM-DTD)"
+    topic: society
+    plan_types: [stato]
+    feeds_target: [TURISMO_RICETTIVITA, TRASPARENZA_APPALTI]
+    cruscotto_sections: [turismo, pun, beni_culturali, anac, siope, runts]
+    status: active
+    notes: >
+      Cruscotto Italia: JSON pre-aggregato per ~7900 comuni con ~30 sezioni
+      (turismo, PUN colonnine, ANAC appalti, SIOPE cassa, RUNTS terzo settore,
+      beni culturali...). Adapter custom: download parallelo di tutti i comuni,
+      produce un CSV per sezione. Risolve PUN (OAuth), turismo, appalti.
 
   - key: n_colonnine_ricarica
     livello: nazionale
@@ -2199,10 +2346,12 @@ sources:
     topic: utilitiesCommunication
     plan_types: [stato]
     feeds_target: ENERGIA_RETI
-    status: todo
+    superseded_by: n_cruscotto_italia
+    status: active
     notes: >
-      Colonnine di ricarica veicoli elettrici. NOTA UTENTE: incerto se i dati siano
-      scaricabili (verificare API/export). Alimenta ENERGIA_RETI / PUNTI_INTERESSE.
+      Colonnine di ricarica. KPI per comune via cruscotto-italia (sezione pun:
+      n_totale, n_attivi, pct_attivi, n_ac, n_dc, potenza_max_kw). Download
+      diretto dalla PUN richiede OAuth.
 
   - key: n_mef_irpef
     livello: nazionale
@@ -2288,16 +2437,16 @@ sources:
     ente: "MEF/Banca d'Italia — SIOPE (incassi e pagamenti degli enti, cassa)"
     kind: portal
     adapter: null
-    proposed_adapter: siope
     url: "https://www.siope.it/Siope/dispatchHome"
     topic: economy
     plan_types: [stato]
-    feeds_target: TRASPARENZA_APPALTI   # movimenti di cassa dell'ente
-    status: todo
+    feeds_target: TRASPARENZA_APPALTI
+    superseded_by: n_cruscotto_italia
+    status: active
     notes: >
-      Incassi e pagamenti dei comuni per codici gestionali standard. Sono movimenti
-      di CASSA (non di competenza): il saldo di cassa non è un avanzo di bilancio.
-      DA RIVEDERE (nota utente).
+      Incassi e pagamenti degli enti per codici gestionali. KPI per comune
+      disponibili via cruscotto-italia (sezione siope: entrate_totali,
+      spese_totali, saldo_cassa, dettaglio per voce).
 
   - key: n_ispra_suolo
     livello: nazionale
@@ -2349,50 +2498,65 @@ sources:
   - key: n_ispra_rifiuti
     livello: nazionale
     ente: "ISPRA — Catasto rifiuti"
-    kind: portal
-    adapter: null
-    proposed_adapter: ispra
+    kind: download
+    adapter: http_download
+    applies_to_all_regions: true
     url: "https://www.catasto-rifiuti.isprambiente.it/"
+    download_items:
+      - key: rifiuti_comunali_2024
+        title: "Produzione e raccolta differenziata su scala comunale 2024"
+        url: "https://www.catasto-rifiuti.isprambiente.it/get/getDettaglioComunale.csv.php?&aa=2024"
+        filename: rifiuti_comunali_2024.csv
+        extract: false
+        format: CSV
+      - key: rifiuti_comunali_2023
+        title: "Produzione e raccolta differenziata su scala comunale 2023"
+        url: "https://www.catasto-rifiuti.isprambiente.it/get/getDettaglioComunale.csv.php?&aa=2023"
+        filename: rifiuti_comunali_2023.csv
+        extract: false
+        format: CSV
     topic: environment
     plan_types: [stato]
     feeds_target: AMBIENTE_RIFIUTI
-    status: todo
+    status: active
     notes: >
-      Catasto rifiuti ISPRA: produzione e gestione rifiuti per comune. Parte del
-      "profilo ambientale" del comune.
+      Catasto rifiuti ISPRA: produzione e gestione rifiuti per comune — CSV
+      scaricabili direttamente (link trovati via browser, non da WAF). Codice
+      ISTAT a 8 cifre (RR+PROCOM 6), separatore ";", decimali con virgola.
 
   - key: n_runts
     livello: nazionale
     ente: "Ministero del Lavoro — RUNTS (Registro Unico Nazionale Terzo Settore)"
     kind: portal
     adapter: null
-    proposed_adapter: runts
     url: "https://servizi.lavoro.gov.it/runts/it-it/Lista-enti"
     license: "D.Lgs 117/2017 (Codice del Terzo Settore)"
     update_cadence: "snapshot settimanale (lunedì); upstream giornaliero"
     topic: society
     plan_types: [stato]
     feeds_target: SERVIZI_POLARITA
-    status: todo
+    superseded_by: n_cruscotto_italia
+    status: active
     notes: >
-      Enti del Terzo Settore iscritti al RUNTS (attivo dal 23/11/2021). Tessuto
-      associativo/no-profit per comune. Alimenta SERVIZI_POLARITA.
+      Enti del Terzo Settore per comune. KPI via cruscotto-italia (sezione
+      runts: n_totale, n_aps, n_odv, n_altri). Download diretto dalla SPA
+      RUNTS non fattibile senza scraping.
 
   - key: n_istat_turismo
     livello: nazionale
     ente: "ISTAT — Capacità e movimento delle strutture ricettive (2024)"
     kind: sdmx
     adapter: null
-    proposed_adapter: istat_sdmx
     url: "https://www.istat.it/statistiche-per-temi/tutti-i-comunicati-stampa/?tema=Turismo"
     topic: economy
     plan_types: [stato]
     feeds_target: TURISMO_RICETTIVITA
-    status: todo
+    superseded_by: n_cruscotto_italia
+    status: active
     notes: >
-      Strutture ricettive e posti letto per comune 2024 (alberghiero + extra:
-      agriturismi, B&B), con arrivi/presenze sul bacino provinciale. DA RIVEDERE
-      (nota utente): individuare i dataflow SDMX corretti.
+      Capacità ricettiva per comune via cruscotto-italia (sezione turismo:
+      totale_strutture, totale_letti, totale_camere, indice_turisticita).
+      I flussi (arrivi/presenze) sono solo provinciali in ISTAT.
 
   - key: n_aci_opendata
     livello: nazionale
