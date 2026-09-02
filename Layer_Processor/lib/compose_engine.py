@@ -76,7 +76,13 @@ def _now() -> str:
 
 
 def _read_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text("utf-8"))
+    for enc in ("utf-8", "utf-8-sig", "latin-1"):
+        try:
+            return json.loads(path.read_text(enc))
+        except (UnicodeDecodeError, ValueError):
+            if enc == "latin-1":
+                raise
+            continue
 
 
 def _bbox_intersects(
@@ -138,12 +144,17 @@ def _iter_source_features(
             x0, y0 = inv.transform(scope_bounds[0], scope_bounds[1])
             x1, y1 = inv.transform(scope_bounds[2], scope_bounds[3])
             filter_bounds = (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
-        try:
-            reader = shapefile.Reader(str(path), encoding="utf-8")
-        except UnicodeDecodeError:
-            reader = shapefile.Reader(str(path), encoding="latin-1")
-        field_names = [field[0] for field in reader.fields[1:]]
-        for item in reader.iterShapeRecords():
+        for enc in ("utf-8", "latin-1"):
+            try:
+                reader = shapefile.Reader(str(path), encoding=enc)
+                field_names = [field[0] for field in reader.fields[1:]]
+                records = list(reader.iterShapeRecords())
+                break
+            except Exception:
+                if enc == "latin-1":
+                    raise
+                continue
+        for item in records:
             try:
                 sbbox = item.shape.bbox
             except AttributeError:
@@ -906,7 +917,12 @@ def compose_constraints(scope: dict[str, Any]) -> dict[str, Any]:
         except Exception as exc:
             source_failures.append({"path": str(path), "reason": str(exc)})
             continue
-        for source_feature in feature_iter:
+        try:
+            source_features_list = list(feature_iter)
+        except Exception as exc:
+            source_failures.append({"path": str(path), "reason": str(exc)})
+            continue
+        for source_feature in source_features_list:
             source_geom = _valid_geometry(source_feature.get("geometry"))
             if source_geom is None:
                 invalid += 1

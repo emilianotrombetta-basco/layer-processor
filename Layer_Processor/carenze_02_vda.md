@@ -1,0 +1,608 @@
+# Carenze — Valle d'Aosta (02)
+
+Data analisi: 2026-09-02
+
+## Composizione: stato dei 22 target
+
+| Target | Stato | Feature | Copertura | Note |
+|--------|-------|---------|-----------|------|
+| PIANI_MATURITA | completed | 74 | 74/74 |  |
+| VINCOLI_COMUNALI | partial | 70952 |  | Inventario ancora parziale: le assenze non possono essere in |
+| SEMAFORO_EDIFICABILITA | partial | 74 |  |  |
+| ANALISI_URBANISTICA | partial | 12824 |  |  |
+| TUTELE_AMBIENTALI_PAESAGGISTICHE | partial | 31612 |  |  |
+| RISCHI_PERICOLOSITA | partial | 21829 |  |  |
+| MOBILITA_ACCESSIBILITA | completed | 1749 |  |  |
+| RETE_VIABILITA | partial | 5029 |  |  |
+| SERVIZI_POLARITA | partial | 2623 |  |  |
+| PUNTI_INTERESSE | completed | 14800 |  |  |
+| COMMERCIO_PRODUTTIVO | completed | 74 | 74/74 | ISTAT ASIA UL (cruscotto) |
+| VALORI_OMI | completed | 1 |  |  |
+| DEMOGRAFIA | completed | 74 | 74/74 | ISTAT Censimento permanente 2023 |
+| ENERGIA_RETI | completed | 816 |  | GSE PUN (cruscotto) |
+| BENI_CULTURALI | completed | 74 | 74/74 | ArCo + Cultural-ON (cruscotto unificato) |
+| CONNETTIVITA_DIGITALE | completed | 74 | 74/74 | AGCOM — Broadband Map: consistenze rete cablata (dati comuna |
+| TRASPARENZA_APPALTI | completed | 74 | 74/74 | ANAC OCDS + BDAP (cruscotto) |
+| TURISMO_RICETTIVITA | completed | 74 | 74/74 | Cruscotto Italia — ISTAT capacità esercizi ricettivi per com |
+| AMBIENTE_RIFIUTI | completed | 74 | 74/74 | ISPRA — Catasto rifiuti: produzione e raccolta differenziata |
+| CONSUMO_SUOLO | completed | 74 | 74/74 | ISPRA — Consumo di suolo, dinamiche territoriali e servizi e |
+| CATASTO_PARTICELLE | completed | 74 | 74/74 | Agenzia delle Entrate — Cartografia catastale INSPIRE |
+| TOPONOMASTICA_CIVICI | completed | 74 | 74/74 | ANNCSU — Archivio Nazionale Numeri Civici e Strade Urbane |
+
+## Layer non riconosciuti (571)
+
+Layer scoperti nel geoportale valdostano che il riconoscitore non ha associato ad alcuna classe canonica.
+
+###  (571 layer)
+
+- **03/02/2021**
+- **05/05/2021**
+- **06/08/2021**
+- **06/11/2021**
+- **1° piano di gestione - stato chimico**
+- **1° piano di gestione - stato ecologico**
+- **20/03/2021 (Equinozio primavera)**
+- **20230819_092749_ssc12_u0001_analytic_SR.tif**
+- **20230819_092749_ssc12_u0001_analytic_SR.tif**
+- **20240702_083006_ssc2_u0001_pansharpened.tif**
+- **20240702_083006_ssc2_u0001_pansharpened.tif**
+- **20240702_083006_ssc2_u0002_pansharpened.tif**
+- **20240702_083006_ssc2_u0002_pansharpened.tif**
+- **20240702_083041_ssc2_u0001_pansharpened.tif**
+- **20240702_083041_ssc2_u0001_pansharpened.tif**
+- **20240702_111815_ssc15_u0001_pansharpened.tif**
+- **20240702_111815_ssc15_u0001_pansharpened.tif**
+- **20240702_111815_ssc15_u0002_pansharpened.tif**
+- **20240702_111815_ssc15_u0002_pansharpened.tif**
+- **20240702_111815_ssc15_u0003_pansharpened.tif**
+- **20240702_111815_ssc15_u0003_pansharpened.tif**
+- **20240702_134717_ssc9_u0001_pansharpened.tif**
+- **20240702_134717_ssc9_u0001_pansharpened.tif**
+- **20240702_134717_ssc9_u0002_pansharpened.tif**
+- **20240702_134717_ssc9_u0002_pansharpened.tif**
+- **20240702_135233_ssc8_u0001_pansharpened.tif**
+- **20240702_135233_ssc8_u0001_pansharpened.tif**
+- **20240702_135233_ssc8_u0002_pansharpened.tif**
+- **20240702_135233_ssc8_u0002_pansharpened.tif**
+- **20240705_140954_ssc10_u0001_analytic_SR.tif**
+- **20240705_140954_ssc10_u0001_analytic_SR.tif**
+- **21/06/2021 (Solstizio estate)**
+- **21/12/2021 (Solstizio inverno)**
+- **22/09/2021 (Equinozio autunno)**
+- **2° piano di gestione - stato chimico**
+- **2° piano di gestione - stato/potenziale ecologico**
+- **3° piano di gestione - stato chimico**
+- **3° piano di gestione - stato/potenziale ecologico**
+- **Abitazioni**
+- **Acque**
+- **Acque**
+- **Acque**
+- **Acque (aree)**
+- **Agglomerati storici**
+- **Agglomerati storici**
+- **Agglomerati storici**
+- **Agosto media ore giornaliere**
+- **Agriturismi**
+- **Alte vie**
+- **Alte vie**
+- **Alte vie**
+- **Altri usi 2024**
+- **Ambiti territoriali (fogli)**
+- **Ambiti territoriali (fogli)**
+- **Ambiti territoriali (mappali)**
+- **Ambiti territoriali (mappali)**
+- **Ambito non presente**
+- **Ambito non presente**
+- **Aprile media ore giornaliere**
+- **Area allagata tr2**
+- **Area allagata tr20**
+- **Area allagata tr200**
+- **Area allagata tr200**
+- **Area allagata tr200 esterna**
+- **Area allagata tr200 esterna**
+- **Area allagata tr500**
+- **Area di conoide attivo non protetta**
+- **Area di conoide attivo non protetta - All. 4.1**
+- **Area di conoide attivo parzialmente protetta**
+- **Area di conoide completamente protetta**
+- **Areali di posa**
+- **Areali di recupero**
+- **Aree da destinarsi a manifestazioni a carattere temporaneo, mobile o all'aperto**
+- **Aree di particolare interesse antecedenti alla variante generale di PRG**
+- **Aree di valorizzazione naturalistica**
+- **Aree limitate (né sorvolo né discesa) per ragioni turistiche dai comuni**
+- **Aree rilevamento scala 1:10.000**
+- **Aree urbanizzate e antropiche 2020**
+- **Aree urbanizzate e antropiche 2022**
+- **Aree urbanizzate e antropiche 2024**
+- **Art.33 - Boschi**
+- **Art.35 comma 2 - Studi di bacino approvati**
+- **Art.35 comma 2 - Studi di bacino non ancora recepiti**
+- **Art.36 - Inondazioni**
+- **Art.36 - Studi di bacino non ancora recepiti**
+- **Attestamenti di grande afflusso turistico**
+- **Attestamenti di grande afflusso turistico**
+- **Attrezzature di supporto alle reti escursionistiche**
+- **Attrezzature di supporto alle reti escursionistiche**
+- **Autostrada (PTP)**
+- **Autostrada (PTP)**
+- **Autostrada (PTP)**
+- **Autostrada a raso**
+- **Bacini idrografici**
+- **Bacini secondari**
+- **Beni puntuali**
+- **Beni puntuali di specifico interesse naturalistico**
+- **Beni puntuali di specifico interesse naturalistico**
+- **Blocco**
+- **Boschi (dato storico PTP)**
+- **Boschi (dato storico PTP)**
+- **CTR edizione 2005 volo 2003 scala 10000**
+- **CTR edizione 2005 volo 2003 scala 25000**
+- **CTR edizione 2005 volo 2003 scala 5000**
+- **CTR edizione 2005 volo 2003 scala 50000**
+- **CTR volo 1965 immagini banda singola**
+- **CTR volo 1975 scala 1:10000**
+- **CTR volo 1975 scala 1:5000**
+- **CTR volo 1983 scala 1:10000**
+- **CTR volo 1983 scala 1:5000**
+- **CTR volo 1991 scala 1:10000**
+- **CTR volo 1991 scala 1:5000**
+- **CTR volo 1999 scala 1:10000**
+- **CTR volo 2003 scala 1:10000**
+- **CTR volo 2003 scala 1:5000**
+- **Carta IGM serie 25v anni '30**
+- **Carta de J.B. de Tillier (copertura centro di Aosta) 1730**
+- **Carta dei pascoli in zone d'alpeggio - Rilievi vegetazionali**
+- **Carta del materiale parentale 1:100.000**
+- **Carta della densità di fenomeni di erosione in massa nei suoli (n°/km2)**
+- **Carta della natura - dato ARPA 2018**
+- **Carta della natura 1:50.000 semplificata**
+- **Carta delle vegetazioni d'alpeggio del Parco Nazionale Gran Paradiso**
+- **Carta dello stock di carbonio organico (kg/m2) nei suoli**
+- **Carta dell’erosione media annua (t*ha-1 anno-1)**
+- **Carta dell’erosione media annua (t*ha-1 anno-1) dopo fattore Humus**
+- **Carta napoleonica del 1802**
+- **Carta topografica degli Stati in Terraferma 1852/1867**
+- **Castelli e palazzi di eminenti pregi artistici o storici 2024**
+- **Cave**
+- **Cave (aree)**
+- **Centro storico di Aosta, bourgs**
+- **Cespuglieti e boschi di transizione 2020**
+- **Cespuglieti e boschi di transizione 2022**
+- **Cespuglieti e boschi di transizione 2024**
+- **Chilometriche**
+- **Cippi chilometrici**
+- **Classi acustiche**
+- **Classi acustiche stagionali eliski**
+- **Classi acustiche stagionali piste da sci**
+- **Classificazione degli edifici antecedente alla variante generale di PRG**
+- **Codici di pascolo 2025**
+- **Complessiva**
+- **Complessivo areale**
+- **Complessivo lineare**
+- **Complessivo puntuale**
+- **Comprensori sci**
+- **Comprensori sci**
+- **Comune (comune - 090101)**
+- **Comuni zona climatica E**
+- **Comuni zona climatica F**
+- **Confine regionale ISTAT - 2025**
+- **Confini comunali ISTAT - 2025**
+- **Confini comunali amministrativi**
+- **Confini del comprensorio**
+- **Confini giurisdizioni forestali**
+- **Consorzi di miglioramento fondiario**
+- **Consorzi irrigui**
+- **Corpi d'acqua 2020**
+- **Corpi d'acqua 2022**
+- **Corpi d'acqua 2024**
+- **Curve di livello passo 100m**
+- **Curve di livello passo 10m**
+- **Curve di livello passo 20m**
+- **Curve di livello passo 250m**
+- **DGPV (2010)**
+- **DTM passo 0,5 2005**
+- **DTM passo 10 aggregato 2005/2008**
+- **DTM passo 100 aggregato 2005/2008**
+- **DTM passo 2 aggregato 2005/2008**
+- **DTM passo 25 aggregato 2005/2008**
+- **DTM passo 50 aggregato 2005/2008**
+- **Date eventi**
+- **Delimitazione bacini**
+- **Demanio idrico regionale**
+- **Demanio idrico regionale (reliquati)**
+- **Demanio idrico statale (Dora Baltea)**
+- **Depuratori**
+- **Dicembre media ore giornaliere**
+- **Discariche**
+- **Discariche (aree)**
+- **Divieto di discesa con gli sci aree limitate dai comuni**
+- **Divieto di discesa con gli sci per fauna**
+- **Divieto di sorvolo (aree limitate dai comuni o presenza di fauna)**
+- **Divieto sia di sorvolo che di discesa per fauna**
+- **Dora Baltea**
+- **Dora Baltea**
+- **Dora Baltea**
+- **Elementi da proteggere**
+- **Elementi geomorfologici cartografabili (2015)**
+- **Elementi geomorfologici ed antropici in forma simbolica (2015)**
+- **Elementi geomorfologici ed antropici lineari (2015/2025)**
+- **Elementi lineari**
+- **Elementi lineari**
+- **Elementi lineari**
+- **Elementi puntuali**
+- **Elemento di trasporto a fune (el_fne - 010301)**
+- **Erodibilità degli orizzonti minerali superficiali**
+- **Esondazioni 2000**
+- **Etichette**
+- **Fabbricati**
+- **Fabbricati**
+- **Fabbricati**
+- **Faglie e sovrascorrimenti (2010)**
+- **Fasce pertinenza autostrada - Tipo A**
+- **Fasce rispetto fiumi legge 431 (dato storico PTP)**
+- **Fasce rispetto laghi legge 431 (dato storico PTP)**
+- **Fasce urbane da riqualificare**
+- **Fasce urbane da riqualificare**
+- **Fascia di deflusso della piena (A)**
+- **Fascia di deflusso della piena (A)**
+- **Fascia di esondazione (B)**
+- **Fascia di esondazione (B)**
+- **Fascia di inondazione per piena catastrofica (C)**
+- **Fascia di inondazione per piena catastrofica (C)**
+- **Febbraio media ore giornaliere**
+- **Foreste di conifere 2020**
+- **Foreste di conifere 2022**
+- **Foreste di conifere 2024**
+- **Foreste di latifoglie 2020**
+- **Foreste di latifoglie 2022**
+- **Foreste di latifoglie 2024**
+- **Foreste di protezione diretta**
+- **Foreste miste e brughiere 2020**
+- **Foreste miste e brughiere 2022**
+- **Foreste miste e brughiere 2024**
+- **Gennaio media ore giornaliere**
+- **Ghiacciai**
+- **Ghiacciai (dato storico PTP)**
+- **Ghiacciai (dato storico PTP)**
+- **Ghiacciai e nivai 2020**
+- **Ghiacciai e nivai 2022**
+- **Ghiacciai e nivai 2024**
+- **Ghiacciai puntuali (rilievo 2005)**
+- **Giugno media ore giornaliere**
+- **Grandi scale**
+- **Habitat**
+- **Idrografia**
+- **Idrografia**
+- **Idrografia**
+- **Immagine SuperDove Dora Baltea**
+- **Immagine SuperDove Dora Baltea**
+- **Impianti CVA**
+- **Impianti di arroccamento**
+- **Impianti di arroccamento**
+- **Impianti di lavorazione inerti e betonaggio**
+- **Impianti di risalita**
+- **Impianti di risalita**
+- **Impianti di trattamento e recupero**
+- **Impianti di trattamento e recupero (aree)**
+- **Indirizzario (in_est - 030202)**
+- **Industria**
+- **Industrie dei prodotti finali leggeri 2024**
+- **Infrastruttura CVA (lineare)**
+- **Infrastruttura CVA (puntuale)**
+- **Infrastruttura VDABB (lineare)**
+- **Infrastruttura VDABB (puntuale)**
+- **Infrastrutture sopraelevate autostrada**
+- **Infrastrutture sottoelevate autostrada**
+- **Infrastrutture sportive 2024**
+- **Invasi**
+- **Isofreatiche**
+- **Itinerario alta valle**
+- **Itinerario bassa valle**
+- **LIDAR 2005 passo 0,5 metri**
+- **LIDAR 2005/2008 passo 2 metri degradato**
+- **LIDAR 2008 passo 2 metri**
+- **Larghezze 1999**
+- **Legge Castagno (dato storico PTP)**
+- **Limite 1600 metri s.l.m. (DTM passo 2 metri 2005/2008)**
+- **Limite 1600 metri s.l.m. (DTM passo 2 metri 2005/2008)**
+- **Limite di progetto tra fascia B e fascia C**
+- **Limite di progetto tra fascia B e fascia C**
+- **Linee**
+- **Linee**
+- **Linee**
+- **Liv. 1 2020**
+- **Liv. 1 2022**
+- **Liv. 1 2024**
+- **Liv. 2 2020**
+- **Liv. 2 2022**
+- **Liv. 2 2024**
+- **Liv. 3 2020**
+- **Liv. 3 2022**
+- **Liv. 3 2024**
+- **Luglio media ore giornaliere**
+- **Lunghezze 1999**
+- **Lunghezze 2005**
+- **Lunghezze 2019**
+- **M1 Aree sciabili**
+- **M1 Assetto del territorio**
+- **M1 Attrezzature turistiche lineari**
+- **M1 Attrezzature turistiche puntuali**
+- **M1 Parti di territorio**
+- **M1 Piste di sci alpino**
+- **M1 Servizi**
+- **M2 Aree di pregio naturalistico**
+- **M2 Beni di interesse naturalistico**
+- **M2 Siti di interesse floristico vegetazionale forestale e faunistico**
+- **M2 Strutture geologiche sorgenti minerarie siti di interesse mineralogico petrografico geomorfologico**
+- **M4 Agglomerati**
+- **M4 Percorsi storici**
+- **M5 Boschi e foreste**
+- **M5 Ghiacciai**
+- **M5 Le montagne per la parte eccedente 1600 metri sul livello del mare**
+- **Magazzini e locali di deposito 2024**
+- **Maggio media ore giornaliere**
+- **Marzo  media ore giornaliere**
+- **Misure del campo elettrico a radiofrequenza - Misure istantanee**
+- **Misure del campo elettrico a radiofrequenza - Misure prolungate nel tempo**
+- **Misure e Monitoraggi di campo elettrico e/o magnetico a bassa frequenza - Campagna misura Aosta**
+- **Misure e Monitoraggi di campo elettrico e/o magnetico a bassa frequenza - Campagna misura Champdepraz**
+- **Misure e Monitoraggi di campo elettrico e/o magnetico a bassa frequenza - Misure istantanee**
+- **Misure e Monitoraggi di campo elettrico e/o magnetico a bassa frequenza - Misure prolungate nel tempo**
+- **Nicchia di distacco**
+- **Non classificato 2024**
+- **Novembre media ore giornaliere**
+- **Numeri di particelle**
+- **Numeri di particelle**
+- **Oleodotto dismesso ENI**
+- **Opere idrauliche**
+- **Ortofoto 2005 scala 10000**
+- **Ortofoto 2005 scala 5000**
+- **Ortofoto 2012/2024 scala 5000**
+- **Ortofoto 2022 Dora Baltea**
+- **Ortofoto Cervinia passo 20 cm**
+- **Ortofoto Cervinia passo 20 cm**
+- **Ortofoto Cogne passo 20 cm**
+- **Ortofoto Cogne passo 20 cm**
+- **Ottobre media ore giornaliere**
+- **P.R.G. e ampliamento scala 1:3000 della città di Aosta del 1926**
+- **P1 Agglomerati**
+- **P1 I complessi di cose immobili che compongono un caratteristico aspetto avente valore estetico e tradizionale**
+- **P1 Le cose immobili che hanno cospicui caratteri di bellezza naturale o di singolarità geologica**
+- **P1 Percorsi storici**
+- **P2 Aree di pregio naturalistico individuate dal PRG in base anche all'art 38 comma 3 del PTP**
+- **P2 Beni di interesse naturalistico**
+- **P2 Siti di interesse floristico vegetazionale forestale e faunistico**
+- **P2 Strutture geologiche sorgenti minerarie siti di interesse mineralogico petrografico geomorfologico**
+- **P3 Aree sciabili**
+- **P3 Captazioni**
+- **P3 Elementi lineari (Arroccamenti)**
+- **P3 Elementi lineari (Canali)**
+- **P3 Elementi lineari (Oleodotto)**
+- **P3 Elementi lineari (Piste Fondo)**
+- **P3 Elementi lineari (Piste di sci alpinismo)**
+- **P3 Elementi lineari (Risalite)**
+- **P3 Elementi puntuali**
+- **P3 Piste di sci alpino**
+- **P3 Tutela captazioni**
+- **P4 Altre aree sottoposte a particolari discipline**
+- **P4 Aree a servizi**
+- **P4 Aree di particolare interesse**
+- **P4 Classificazione degli edifici fuori dalle zone di tipo A**
+- **P4 Classificazione degli edifici ricadenti nelle zone di tipo A**
+- **P4 Comparti sottozone**
+- **P4 Servizi di interesse locale**
+- **P4 Servizi di rilevanza regionale**
+- **P4 Spazi a servizio di adiacenti sottozone insediative**
+- **P4 Zone**
+- **P4 Zone (BORDI)**
+- **PMIR 1 Fascia della Dora**
+- **PMIR 1 e 2 Fasce envers adret**
+- **PMIR 3 Simboli dei castelli**
+- **PMIR 3 Sistema dei castelli**
+- **PMIR 5 Territorio Walser**
+- **PMIR 6 Alte vie e altri itinerari escursionistici**
+- **PMIR 6 Simbolo Alte vie**
+- **PMIR 7 Turismo invernale**
+- **PRAE**
+- **PRG - Aree di particolare interesse antecedenti alla variante generale di PRG**
+- **PRG - Classificazione degli edifici antecedente alla variante generale di PRG**
+- **PRG - M5 Ghiacciai**
+- **PRG - M5 boschi e foreste**
+- **PRG - P4 Aree di particolare interesse**
+- **PRG - P4 Classificazione degli edifici fuori dalle zone di tipo A**
+- **PRG - P4 Classificazione degli edifici ricadenti nelle zone di tipo A**
+- **PRG - Stato iter di adeguamento al PTP**
+- **PTIR 1 Valdigne**
+- **PTIR 2 Piana di Aosta**
+- **PTIR 3 Bard**
+- **PTP - Fasce rispetto fiumi legge 431 (dato storico PTP)**
+- **PTP - Fasce rispetto laghi legge 431 (dato storico PTP)**
+- **PTP - Fasce rispetto laghi legge 431 (dato storico PTP)**
+- **PTP - Ghiacciai (dato storico PTP)**
+- **Paline nivometriche**
+- **Parco Nazionale Gran Paradiso**
+- **Parco minerario**
+- **Parco minerario (aree)**
+- **Particelle**
+- **Particelle**
+- **Pendenza (gradi)**
+- **Pendenza (percentuale)**
+- **Pendenza oltre 30 gradi (2 classi)**
+- **Pendenza oltre 30 gradi (5 classi)**
+- **Percorsi in aree di verde attrezzato urbano**
+- **Percorsi in aree di verde attrezzato urbano**
+- **Percorsi storici**
+- **Percorsi storici**
+- **Perimetri 1820 - 1860**
+- **Perimetri 1861 - 1880**
+- **Perimetri 1881 - 1900**
+- **Perimetri 1901 - 1920**
+- **Perimetri 1921 - 1940**
+- **Perimetri 1941 - 1960**
+- **Perimetri 1961 - 1980**
+- **Perimetri 1981 - 2000**
+- **Perimetri 2005**
+- **Perimetri 2019**
+- **Piano di rischio**
+- **Piano di volo ortofoto 2012**
+- **Piano di volo ortofoto 2024 (fotogrammi)**
+- **Piano di volo ortofoto 2024 (strisciate)**
+- **Piste di sci alpino**
+- **Piste di sci alpino**
+- **Piste forestali**
+- **Postazioni (scale alte)**
+- **Postazioni (scale di dettaglio)**
+- **Pozzi**
+- **Praterie naturali e pascoli alpini 2020**
+- **Praterie naturali e pascoli alpini 2022**
+- **Praterie naturali e pascoli alpini 2024**
+- **Prato-pascoli 2020**
+- **Prato-pascoli 2022**
+- **Prato-pascoli 2024**
+- **Presidi depurativi**
+- **Profili pedologici ed osservazioni**
+- **Progetti operativi integrati**
+- **Proprietà comunale**
+- **Proprietà delle consorterie**
+- **Provincia (provin - 090105)**
+- **Punti di captazione acque**
+- **Punti di osservazioni geologiche (2015/2025)**
+- **Punti di partenza**
+- **Punti monitoraggio - SCAS**
+- **Punti monitoraggio - SQUAS**
+- **Punti regolazione flussi veicolari**
+- **Punti regolazione flussi veicolari**
+- **Punti sensibili**
+- **QDU IGM 50000**
+- **QDU IGM serie 25v anni '30**
+- **QDU P.R.G. e ampliamento scala 1:3000 della città di Aosta del 1926**
+- **QDU Stati in Terraferma 1852/1867**
+- **QDU carta de J.B. de Tillier (copertura centro di Aosta) 1730**
+- **QDU carta napoleonica del 1802**
+- **QDU volo 1965 scala 1:5000**
+- **QDU volo 1975 scala 1:10000**
+- **QDU volo 1975 scala 1:5000**
+- **QDU volo 1983 scala 1:10000**
+- **QDU volo 1983 scala 1:5000**
+- **QDU volo 1991 scala 1:10000**
+- **QDU volo 1991 scala 1:5000**
+- **QDU volo 1999 scala 1:10000**
+- **QDU volo 2003 scala 1:10000**
+- **QDU volo 2003 scala 1:5000**
+- **Qualità dell'aria**
+- **Radon in acqua**
+- **Regione (region - 090106)**
+- **Rete acquedottistica**
+- **Rete fluviale**
+- **Rete fognaria acque bianche**
+- **Rete fognaria acque nere**
+- **Reti di trasporto 2024**
+- **Reticolo secondario**
+- **Reticolo secondario areale**
+- **Reticolo secondario lineare**
+- **Reticolo secondario puntuale**
+- **Risorse e prospezioni (2015)**
+- **Roccia affiorante 2020**
+- **Roccia affiorante 2022**
+- **Roccia affiorante 2024**
+- **Rock Glacier**
+- **Rotte di sorvolo (da ogni piazzola di base e recupero, ad ogni punto di posa)**
+- **Scale di dettaglio**
+- **Scienza, ricerca ed educazione 2024**
+- **Serbatoi**
+- **Servizi commerciali 2024**
+- **Servizi culturali interni 2024**
+- **Servizi di alloggio e ristorazione 2024**
+- **Servizi di rilevanza regionale**
+- **Servizi di rilevanza regionale**
+- **Servizi religiosi 2024**
+- **Settembre media ore giornaliere**
+- **Sezioni di censimento ISTAT - 2021**
+- **Simboli**
+- **Simboli**
+- **Sistema boschivo**
+- **Sistema boschivo**
+- **Sistema dei pascoli**
+- **Sistema dei pascoli**
+- **Sistema fluviale**
+- **Sistema fluviale**
+- **Sistema misto integrato fluviale**
+- **Sistema misto urbano fluviale**
+- **Sistemi integrati**
+- **Sistemi integrati**
+- **Sistemi residenziali**
+- **Sistemi residenziali**
+- **Sistemi tradizionali**
+- **Sistemi turistici**
+- **Sistemi turistici**
+- **Sistemi urbani**
+- **Sistemi urbani**
+- **Siti di monitoraggio acustico**
+- **Siti di specifico interesse naturalistico**
+- **Siti di specifico interesse naturalistico**
+- **Sottosistema alta montagna**
+- **Sottosistema alta montagna**
+- **Sottosistema aree naturali**
+- **Sottosistema aree naturali**
+- **Spazializzazione delle precipitazioni medie annue (mm/anno)**
+- **Spessore ghiacciai - dato ARPA 2008**
+- **Stalle, scuderie, rimesse e autorimesse 2024**
+- **Stato iter di adeguamento al PTP**
+- **Stazioni in progetto**
+- **Stazioni turistiche**
+- **Stazioni turistiche**
+- **Substrato serpentinitico**
+- **Superfici 1999**
+- **Superfici 2001**
+- **Superfici 2005**
+- **Superfici 2012**
+- **Superfici 2019**
+- **Svincoli autostradali**
+- **Svincoli autostradali**
+- **Tavola di mitigazione**
+- **Tavolette 20000**
+- **Terminazioni VDABB**
+- **Testi**
+- **Tettoie chiuse o aperte 2024**
+- **Tipi forestali 2011**
+- **Tipi forestali 2020**
+- **Toponomastica**
+- **Toponomastica**
+- **Totale annuale KWH/m2**
+- **Tour escursionistici**
+- **Tour escursionistici**
+- **Traccia impatto**
+- **Traiettoria**
+- **Tratte sentieristica**
+- **Tratti oggetto di approfondimento**
+- **Trenino Cogne Pila**
+- **Trenino Cogne Pila**
+- **Uffici e studi privati 2024**
+- **Unità geologiche cartografabili (lineari - 2015 - no continuum)**
+- **Unità geologiche cartografabili (lineari - 2018)**
+- **Unità geologiche cartografabili (lineari - 2018/2025)**
+- **Unità geologiche cartografabili (poligonali - 2015 - no continuum)**
+- **Unità geologiche cartografabili (poligonali - 2018)**
+- **Unità geologiche cartografabili (poligonali - 2018/2025)**
+- **Unità volumetrica (un_vol - 020101)**
+- **Unités des Communes valdôtaines**
+- **Urbanizzato**
+- **V1 - Area ad alto rischio**
+- **V1 - Area ad alto rischio**
+- **V2 - Area a medio rischio**
+- **V2 - Area a medio rischio**
+- **V3 - Area a basso rischio**
+- **V3 - Area a basso rischio**
+- **Va - Zona esposta a fenomeni valanghivi**
+- **Va - Zona esposta a fenomeni valanghivi**
+- **Vb - Zona di probabile localizzazione dei fenomeni valanghivi**
+- **Vb - Zona di probabile localizzazione dei fenomeni valanghivi**
+- **Vegetazione erbacea discontinua di medio bassa quota 2020**
+- **Vegetazione erbacea discontinua di medio bassa quota 2022**
+- **Vegetazione erbacea discontinua di medio bassa quota 2024**
+- **Villes**
+- **Vincoli urbanistici particolari**
+- **Vincolo 1600 (dato storico PTP)**
+- **Vincolo legge 1497 (dato storico PTP)**
+- **Zone interdette**
