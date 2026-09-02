@@ -138,13 +138,23 @@ def cmd_sync(args) -> int:
         "01": ["r_piemon"],
         "02": ["r_vda"],
         "03": ["r_lombar", "r_lombar_pgtweb", "r_lombar_ptm"],
+        "04": ["r_tn_pup", "r_tn_pericolosita", "r_tn_servizi_valli",
+               "r_bz_piani", "r_bz_piani_gvcc", "r_bz_pericoli",
+               "r_bz_geologia", "r_bz_idrologia"],
         "05": ["r_veneto"],
+        "06": ["r_fvg_ppr", "r_fvg_siti_prot", "r_fvg_zone_vinc"],
         "07": ["r_liguria"],
+        "08": ["r_emilia_romagna_pug", "r_emilia_romagna_psc",
+               "p_bo_ptcp_tutele", "p_fe_ptcp_tutele", "p_fc_ptcp_tutele",
+               "p_mo_ptcp_tutele", "p_pr_ptcp_tutele", "p_pc_ptcp_tutele",
+               "p_ra_ptcp_tutele", "p_re_ptcp_tutele"],
+        "12": ["r_lazio"],
+        "17": ["r_basilicata"],
+        "20": ["r_sardegna"],
     }
     if region not in sources:
         print(
-            "sync regionale implementato per Piemonte (01), Valle d'Aosta (02) "
-            "Lombardia (03), Veneto (05) e Liguria (07).",
+            f"sync regionale non ancora implementato per la regione {region}.",
             file=sys.stderr,
         )
         return 2
