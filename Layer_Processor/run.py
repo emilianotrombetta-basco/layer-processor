@@ -29,9 +29,6 @@ if str(ROOT) not in sys.path:
 from lib import planning_context, state  # noqa: E402
 from lib.config import get_paths as _get_paths  # noqa: E402
 from stages import stage_01_discover as s01  # noqa: E402
-from stages import stage_02_download as s02  # noqa: E402
-from stages import stage_03_recognize as s03  # noqa: E402
-from stages import stage_04_compose as s04  # noqa: E402
 
 
 def _sources_registry() -> dict:
@@ -98,6 +95,8 @@ def cmd_discover(args) -> int:
 
 
 def cmd_download(args) -> int:
+    from stages import stage_02_download as s02
+
     try:
         source = _source(args.source)
         paths = _get_paths()
@@ -182,6 +181,8 @@ def cmd_sync(args) -> int:
 
 
 def cmd_recognize(args) -> int:
+    from stages import stage_03_recognize as s03
+
     catalog = Path(args.catalog).resolve()
     if not catalog.exists():
         print(f"catalogo non trovato: {catalog}", file=sys.stderr)
@@ -200,6 +201,8 @@ def cmd_recognize(args) -> int:
 
 
 def cmd_compose(args) -> int:
+    from stages import stage_04_compose as s04
+
     targets = [t.strip() for t in (args.targets or "").split(",") if t.strip()]
     scope = {"level": args.scope_level, "key": args.scope_key, "name": args.scope_name}
     try:
