@@ -2642,3 +2642,185 @@ h1 {
   .cm-mid { background: #2d6a4f; color: #d8f3dc; }
   .cm-high { background: #40916c; color: #fff; }
 }
+
+/* ── Settings ───────────────────────────── */
+.settings-content { max-width: 720px; }
+.settings-card {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+.settings-card h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+.settings-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 1.25rem;
+  line-height: 1.5;
+}
+.path-row {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+.path-row:last-of-type { border-bottom: none; }
+.path-label strong {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.1rem;
+}
+.path-label small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.path-input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+.path-input-group input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: monospace;
+  background: #fff;
+}
+.browse-btn {
+  padding: 0.5rem 1rem;
+  background: var(--green-soft);
+  color: var(--green);
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.browse-btn:hover { background: var(--green); color: #fff; }
+.resolved-path {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: monospace;
+}
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.save-btn {
+  padding: 0.6rem 1.5rem;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.save-btn:disabled { opacity: 0.4; cursor: default; }
+.save-btn:not(:disabled):hover { filter: brightness(1.1); }
+.config-notice { font-size: 0.8rem; color: var(--green); }
+
+/* Browser overlay */
+.browser-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.browser-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: min(560px, 90vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.browser-dialog h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+.browser-path {
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--soft);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+  word-break: break-all;
+}
+.browser-entries {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  max-height: 40vh;
+}
+.browser-entry {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line);
+}
+.browser-entry:last-child { border-bottom: none; }
+.browser-entry:hover { background: var(--green-soft); }
+.browser-entry.parent { font-weight: 600; color: var(--green); }
+.browser-empty {
+  padding: 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.browser-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.browser-actions button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.browser-actions .select-btn {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+  font-weight: 600;
+}
+.browser-actions .select-btn:hover { filter: brightness(1.1); }
+
+@media (prefers-color-scheme: dark) {
+  .settings-card { background: var(--bg); }
+  .path-input-group input { background: var(--bg); color: var(--ink); }
+  .browser-dialog { background: var(--bg); color: var(--ink); }
+}
+:root[data-theme="dark"] {
+  .settings-card { background: var(--bg); }
+  .path-input-group input { background: var(--bg); color: var(--ink); }
+  .browser-dialog { background: var(--bg); color: var(--ink); }
+}

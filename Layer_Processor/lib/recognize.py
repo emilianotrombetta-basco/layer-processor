@@ -18,6 +18,23 @@ from .normalize import norm_match, tokens
 CONF_WEIGHT = {"high": 3.0, "medium": 2.0, "low": 1.0}
 REGISTRY = Path(__file__).resolve().parents[1] / "registry"
 
+_TOPIC_ALIASES: dict[str, str] = {
+    "INFORMAZIONI GEOSCIENTIFICHE": "geoscientificInformation",
+    "ACQUE INTERNE": "inlandWaters",
+    "ACQUE MARINE": "oceans",
+    "AMBIENTE": "environment",
+    "BIOLOGIA": "biota",
+    "ECONOMIA": "economy",
+    "PIANIFICAZIONE DEL TERRITORIO E CATASTO": "planningCadastre",
+    "RETI, INFRASTRUTTURE E SERVIZI DI COMUNICAZIONE": "utilitiesCommunication",
+    "SALUTE": "health",
+    "SOCIETA": "society",
+    "STRUTTURE": "structure",
+    "TRASPORTO": "transportation",
+    "AGRICOLTURA": "farming",
+    "PIANO PAESAGGISTICO REGIONALE": "planningCadastre",
+}
+
 # stopword italiane: escluse dall'overlap delle proposte (rumore su 'di','del','e',...)
 STOP = {"di", "del", "della", "dei", "delle", "degli", "e", "a", "al", "alla", "ai",
         "il", "la", "lo", "le", "i", "gli", "un", "una", "con", "per", "su", "da",
@@ -63,7 +80,7 @@ class Recognizer:
     # -- matching ----------------------------------------------------------
     def match(self, title: str, topic: str | None = None) -> Match:
         nt = f" {norm_match(title)} "
-        topic = (topic or "").strip()
+        topic = _TOPIC_ALIASES.get((topic or "").strip(), (topic or "").strip())
         best: Match | None = None
         for rule in self.rules:
             topics = rule.get("topic_in")

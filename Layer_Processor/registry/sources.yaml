@@ -1615,6 +1615,7 @@ sources:
     plan_types: [stato]
     planning_instruments: [AINOP]
     feeds_target: RETE_VIABILITA
+    applies_to_all_regions: true
     status: active
     notes: >
       22 risorse (XLSX+CSV per tipo: aeroportuali, dighe, edilizia, portuali, ferroviarie
@@ -2387,6 +2388,7 @@ sources:
     topic: health
     plan_types: [stato]
     feeds_target: SERVIZI_POLARITA
+    applies_to_all_regions: true
     html_resources:
       - key: farmacie
         title: "Farmacie (CSV)"

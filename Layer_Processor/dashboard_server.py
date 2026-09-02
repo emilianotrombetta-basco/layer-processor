@@ -31,18 +31,20 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from lib import composition_state  # noqa: E402
+from lib.config import get_paths as _cfg_paths  # noqa: E402
 WORKSPACE = ROOT.parent
+_PATHS = _cfg_paths()
 CATALOG = (ROOT / "../Nord/piemonte/_catalog.csv").resolve()
-RECOGNITION_DIR = ROOT / "work/recognition"
-PROPOSALS_DIR = ROOT / "work/proposals"
-SCOPED_CATALOG_DIR = ROOT / "work/catalog_scopes"
-JOB_HISTORY_DIR = ROOT / "work/jobs"
+RECOGNITION_DIR = _PATHS["work"] / "recognition"
+PROPOSALS_DIR = _PATHS["work"] / "proposals"
+SCOPED_CATALOG_DIR = _PATHS["work"] / "catalog_scopes"
+JOB_HISTORY_DIR = _PATHS["work"] / "jobs"
 TAXONOMY = ROOT / "registry/canonical_taxonomy.yaml"
 DICTIONARY = ROOT / "registry/layer_dictionary.yaml"
 COMPOSITION_TARGETS = ROOT / "registry/composition_targets.yaml"
 SOURCES = ROOT / "registry/sources.yaml"
-OUT = ROOT / "out"
-ADMIN_DIR = WORKSPACE / "Geography_Locations/outputs"
+OUT = _PATHS["out"]
+ADMIN_DIR = _PATHS["admin"]
 ADMIN_FILES = {
     "region": ADMIN_DIR / "admin_regions.geojson",
     "province": ADMIN_DIR / "admin_provinces.geojson",
@@ -2162,6 +2164,30 @@ def dashboard_payload(scope: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _browse_directory(raw_path: str) -> dict[str, Any]:
+    """Lista le sotto-cartelle di un path per il browser di directory nella dashboard."""
+    base = Path(raw_path or "/").expanduser().resolve()
+    if not base.exists():
+        return {"path": str(base), "exists": False, "entries": []}
+    if not base.is_dir():
+        base = base.parent
+    entries: list[dict[str, Any]] = []
+    try:
+        for item in sorted(base.iterdir()):
+            if item.name.startswith("."):
+                continue
+            if item.is_dir():
+                entries.append({"name": item.name, "path": str(item), "type": "dir"})
+    except PermissionError:
+        pass
+    return {
+        "path": str(base),
+        "parent": str(base.parent) if base.parent != base else None,
+        "exists": True,
+        "entries": entries[:200],
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "LayerProcessorDashboard/2.0"
 
@@ -2233,6 +2259,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(coverage_matrix_payload())
             elif path == "/api/health":
                 self._json({"ok": True, "local": True, "version": 2})
+            elif path == "/api/config":
+                from lib.config import get_paths, load_raw
+                raw = load_raw()
+                resolved = {k: str(v) for k, v in get_paths().items()}
+                self._json({"raw": raw.get("paths", {}), "resolved": resolved})
+            elif path == "/api/browse":
+                self._json(_browse_directory(query.get("path", [""])[0]))
             elif path == "/api/final-layers":
                 scope = {
                     "level": query.get("level", ["region"])[0],
@@ -2243,6 +2276,21 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._json({"error": "Endpoint non trovato."}, 404)
         except (ValueError, KeyError) as exc:
+            self._json({"error": str(exc)}, 400)
+
+    def do_PUT(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path
+        try:
+            if path == "/api/config":
+                from lib.config import save_paths, get_paths
+                body = self._body()
+                new_paths = body.get("paths") or {}
+                save_paths(new_paths)
+                resolved = {k: str(v) for k, v in get_paths().items()}
+                self._json({"saved": True, "resolved": resolved})
+            else:
+                self._json({"error": "Endpoint non trovato."}, 404)
+        except (RuntimeError, ValueError) as exc:
             self._json({"error": str(exc)}, 400)
 
     def do_POST(self) -> None:  # noqa: N802

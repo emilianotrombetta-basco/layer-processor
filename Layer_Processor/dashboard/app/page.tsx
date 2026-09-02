@@ -516,7 +516,7 @@ function FinalLayerMap({ data }: { data: FinalLayers }) {
 
 export default function Home() {
   const [tab, setTab] = useState<
-    "processes" | "territory" | "sources" | "coverage"
+    "processes" | "territory" | "sources" | "coverage" | "settings"
   >("processes");
   const [scope, setScope] = useState<Scope>({
     level: "region",
@@ -632,6 +632,14 @@ export default function Home() {
   const [sourceChecks, setSourceChecks] = useState<
     Record<string, { status: string; loading?: boolean }>
   >({});
+
+  // Settings state
+  const [configPaths, setConfigPaths] = useState<Record<string, string>>({});
+  const [configResolved, setConfigResolved] = useState<Record<string, string>>({});
+  const [configDirty, setConfigDirty] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configNotice, setConfigNotice] = useState<string | null>(null);
+  const [browsing, setBrowsing] = useState<{ key: string; path: string; parent: string | null; entries: { name: string; path: string }[] } | null>(null);
   const getTerritories = useCallback(
     async (
       level: Scope["level"],
@@ -760,6 +768,67 @@ export default function Home() {
       });
     return () => controller.abort();
   }, [scope, tab]);
+
+  // Load config when settings tab opens
+  useEffect(() => {
+    if (tab !== "settings") return;
+    fetch(`${API}/api/config`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        setConfigPaths(d.raw || {});
+        setConfigResolved(d.resolved || {});
+        setConfigDirty(false);
+      })
+      .catch(() => {});
+  }, [tab]);
+
+  const saveConfig = async () => {
+    setConfigSaving(true);
+    setConfigNotice(null);
+    try {
+      const res = await fetch(`${API}/api/config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: configPaths }),
+      });
+      const d = await res.json();
+      if (d.saved) {
+        setConfigResolved(d.resolved || {});
+        setConfigDirty(false);
+        setConfigNotice("Configurazione salvata.");
+      } else {
+        setConfigNotice(`Errore: ${d.error || "sconosciuto"}`);
+      }
+    } catch (e) {
+      setConfigNotice("Errore di connessione.");
+    } finally {
+      setConfigSaving(false);
+    }
+  };
+
+  const browseDir = async (key: string, startPath: string) => {
+    try {
+      const res = await fetch(
+        `${API}/api/browse?path=${encodeURIComponent(startPath)}`,
+      );
+      const d = await res.json();
+      setBrowsing({
+        key,
+        path: d.path,
+        parent: d.parent,
+        entries: d.entries || [],
+      });
+    } catch {
+      setBrowsing(null);
+    }
+  };
+
+  const selectBrowsedDir = () => {
+    if (!browsing) return;
+    setConfigPaths((prev) => ({ ...prev, [browsing.key]: browsing.path }));
+    setConfigDirty(true);
+    setBrowsing(null);
+  };
 
   const toggleStage = (stageId: string) => {
     setExpandedStages((current) => {
@@ -1197,6 +1266,12 @@ export default function Home() {
             onClick={() => setTab("coverage")}
           >
             Copertura
+          </button>
+          <button
+            className={tab === "settings" ? "active" : ""}
+            onClick={() => setTab("settings")}
+          >
+            ⚙ Impostazioni
           </button>
         </nav>
         <span className={`connection-state ${offline ? "offline" : ""}`}>
@@ -2555,6 +2630,116 @@ export default function Home() {
                   </tr>
                 </tfoot>
               </table>
+            </div>
+          )}
+        </section>
+      ) : tab === "settings" ? (
+        <section className="content settings-content">
+          <div className="page-title">
+            <div>
+              <p>Configurazione</p>
+              <h1>Impostazioni</h1>
+            </div>
+          </div>
+
+          <div className="settings-card">
+            <h2>Cartelle di lavoro</h2>
+            <p className="settings-desc">
+              Seleziona le cartelle dove il Layer Processor scarica, elabora e
+              salva i dati. Modifica i percorsi per spostare la pipeline su un
+              disco diverso.
+            </p>
+
+            {(
+              [
+                ["raw", "Dati grezzi", "GeoJSON, SHP, CSV, XLSX scaricati dalle fonti"],
+                ["work", "Lavoro", "Cataloghi, riconoscimenti, proposte, job"],
+                ["out", "Output", "Composizioni finali per target e regione"],
+                ["state", "Stato", "Checkpoint della pipeline"],
+                ["admin", "Confini ISTAT", "admin_regions/provinces/municipalities.geojson"],
+              ] as [string, string, string][]
+            ).map(([key, label, desc]) => (
+              <div key={key} className="path-row">
+                <div className="path-label">
+                  <strong>{label}</strong>
+                  <small>{desc}</small>
+                </div>
+                <div className="path-input-group">
+                  <input
+                    type="text"
+                    value={configPaths[key] || ""}
+                    placeholder={key}
+                    onChange={(e) => {
+                      setConfigPaths((p) => ({ ...p, [key]: e.target.value }));
+                      setConfigDirty(true);
+                    }}
+                  />
+                  <button
+                    className="browse-btn"
+                    onClick={() =>
+                      browseDir(key, configResolved[key] || configPaths[key] || "/")
+                    }
+                  >
+                    Sfoglia
+                  </button>
+                </div>
+                {configResolved[key] && (
+                  <small className="resolved-path">
+                    → {configResolved[key]}
+                  </small>
+                )}
+              </div>
+            ))}
+
+            <div className="settings-actions">
+              <button
+                className="save-btn"
+                disabled={!configDirty || configSaving}
+                onClick={saveConfig}
+              >
+                {configSaving ? "Salvataggio…" : "Salva configurazione"}
+              </button>
+              {configNotice && <span className="config-notice">{configNotice}</span>}
+            </div>
+          </div>
+
+          {browsing && (
+            <div className="browser-overlay" onClick={() => setBrowsing(null)}>
+              <div
+                className="browser-dialog"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3>Seleziona cartella</h3>
+                <div className="browser-path">{browsing.path}</div>
+                <div className="browser-entries">
+                  {browsing.parent && (
+                    <button
+                      className="browser-entry parent"
+                      onClick={() => browseDir(browsing.key, browsing.parent!)}
+                    >
+                      ↑ ..
+                    </button>
+                  )}
+                  {browsing.entries.map((entry) => (
+                    <button
+                      key={entry.path}
+                      className="browser-entry"
+                      onClick={() => browseDir(browsing.key, entry.path)}
+                    >
+                      📁 {entry.name}
+                    </button>
+                  ))}
+                  {!browsing.entries.length && !browsing.parent && (
+                    <p className="browser-empty">Nessuna sotto-cartella</p>
+                  )}
+                </div>
+                <div className="browser-actions">
+                  <button onClick={() => setBrowsing(null)}>Annulla</button>
+                  <button className="select-btn" onClick={selectBrowsedDir}>
+                    Seleziona questa cartella
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </section>

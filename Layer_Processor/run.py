@@ -27,6 +27,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from lib import planning_context, state  # noqa: E402
+from lib.config import get_paths as _get_paths  # noqa: E402
 from stages import stage_01_discover as s01  # noqa: E402
 from stages import stage_02_download as s02  # noqa: E402
 from stages import stage_03_recognize as s03  # noqa: E402
@@ -73,7 +74,7 @@ def cmd_discover(args) -> int:
         status_source = _source("r_vda_prg_status") if source.get("adapter") == "vda_sct" else None
         summary = s01.run(
             source,
-            work_dir=ROOT / "work",
+            work_dir=_get_paths()["work"],
             status_source=status_source,
             progress=_progress(args.progress),
         )
@@ -99,20 +100,21 @@ def cmd_discover(args) -> int:
 def cmd_download(args) -> int:
     try:
         source = _source(args.source)
-        manifest = ROOT / "work" / "catalog" / f"{args.source}_services.json"
+        paths = _get_paths()
+        manifest = paths["work"] / "catalog" / f"{args.source}_services.json"
         if not manifest.exists():
             print(f"Manifest non trovato: {manifest}. Eseguo prima discover.", flush=True)
             status_source = _source("r_vda_prg_status") if source.get("adapter") == "vda_sct" else None
             s01.run(
                 source,
-                work_dir=ROOT / "work",
+                work_dir=paths["work"],
                 status_source=status_source,
                 progress=_progress(args.progress),
             )
         summary = s02.run(
             source,
             manifest_path=manifest,
-            raw_dir=ROOT / "raw",
+            raw_dir=paths["raw"],
             service_filter=args.service,
             max_services=args.max_services,
             dry_run=args.dry_run,
@@ -209,8 +211,9 @@ def cmd_compose(args) -> int:
 
 def cmd_omi(args) -> int:
     from lib import omi
+    paths = _get_paths()
     if args.action == "discover":
-        _result(omi.discover(ROOT / "work", progress=_progress(args.progress)))
+        _result(omi.discover(paths["work"], progress=_progress(args.progress)))
         return 0
     scope: dict = {"mode": args.scope}
     if args.scope == "province":
@@ -219,7 +222,7 @@ def cmd_omi(args) -> int:
     fields = [f.strip() for f in (args.fields or "").split(",") if f.strip()] or None
     try:
         summary = omi.download(
-            ROOT / "raw", scope=scope, semesters=sems, last_years=args.last_years,
+            paths["raw"], scope=scope, semesters=sems, last_years=args.last_years,
             fields=fields, refresh=args.refresh, max_comuni=args.max_comuni,
             dry_run=args.dry_run, progress=_progress(args.progress),
             call_event=_call_event(args.progress),

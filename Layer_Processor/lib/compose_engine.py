@@ -26,15 +26,19 @@ from . import state
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE = ROOT.parent
-ADMIN_DIR = WORKSPACE / "Geography_Locations" / "outputs"
+
+from .config import get_paths as _cfg_paths  # noqa: E402
+
+def _init_paths():
+    p = _cfg_paths()
+    return p["admin"], p["raw"], p["work"], p["out"]
+
+ADMIN_DIR, RAW, WORK, OUT = _init_paths()
 CURRENT_MUNICIPALITY_OVERLAYS = {
     "03": ADMIN_DIR / "admin_municipalities_lombardia_current.geojson",
     "05": ADMIN_DIR / "admin_municipalities_veneto_current.geojson",
 }
 LOMBARDIA_CURRENT_MUNICIPALITIES = CURRENT_MUNICIPALITY_OVERLAYS["03"]
-RAW = ROOT / "raw"
-WORK = ROOT / "work"
-OUT = ROOT / "out"
 TARGETS_FILE = ROOT / "registry" / "composition_targets.yaml"
 
 STATUS_SOURCE_VDA = (
@@ -89,6 +93,31 @@ def _bbox_intersects(
     )
 
 
+def _reproject_geometry(geo: dict[str, Any], transformer: Any) -> dict[str, Any]:
+    """Riproietta le coordinate di una geometria GeoJSON usando un Transformer pyproj."""
+    def _xform(coords: Any) -> Any:
+        if isinstance(coords[0], (int, float)):
+            x, y = transformer.transform(coords[0], coords[1])
+            return [x, y, *coords[2:]] if len(coords) > 2 else [x, y]
+        return [_xform(c) for c in coords]
+    return {**geo, "coordinates": _xform(geo.get("coordinates", []))}
+
+
+def _shp_transformer(path: Path) -> Any | None:
+    """Se lo SHP è in CRS proiettato, restituisce un Transformer verso WGS84."""
+    prj = path.with_suffix(".prj")
+    if not prj.exists():
+        return None
+    try:
+        from pyproj import CRS, Transformer
+        src = CRS.from_wkt(prj.read_text(encoding="utf-8"))
+        if src.is_geographic:
+            return None
+        return Transformer.from_crs(src, CRS.from_epsg(4326), always_xy=True)
+    except Exception:
+        return None
+
+
 def _iter_source_features(
     path: Path,
     scope_bounds: tuple[float, float, float, float] | None = None,
@@ -101,15 +130,39 @@ def _iter_source_features(
     """
     suffix = path.suffix.lower()
     if suffix == ".shp":
-        reader = shapefile.Reader(str(path), encoding="utf-8")
+        transformer = _shp_transformer(path)
+        filter_bounds = scope_bounds
+        if transformer and scope_bounds:
+            from pyproj import CRS, Transformer
+            inv = Transformer.from_crs(CRS.from_epsg(4326), transformer.source_crs, always_xy=True)
+            x0, y0 = inv.transform(scope_bounds[0], scope_bounds[1])
+            x1, y1 = inv.transform(scope_bounds[2], scope_bounds[3])
+            filter_bounds = (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+        try:
+            reader = shapefile.Reader(str(path), encoding="utf-8")
+        except UnicodeDecodeError:
+            reader = shapefile.Reader(str(path), encoding="latin-1")
         field_names = [field[0] for field in reader.fields[1:]]
         for item in reader.iterShapeRecords():
-            if not _bbox_intersects(item.shape.bbox, scope_bounds):
+            try:
+                sbbox = item.shape.bbox
+            except AttributeError:
+                pts = item.shape.points
+                if not pts:
+                    continue
+                sbbox = (pts[0][0], pts[0][1], pts[0][0], pts[0][1])
+            if not _bbox_intersects(sbbox, filter_bounds):
                 continue
+            geo = item.shape.__geo_interface__
+            if transformer:
+                geo = _reproject_geometry(geo, transformer)
             yield {
                 "type": "Feature",
-                "geometry": item.shape.__geo_interface__,
-                "properties": dict(zip(field_names, item.record)),
+                "geometry": geo,
+                "properties": {
+                    k: v.isoformat() if isinstance(v, (datetime,)) or type(v).__name__ == "date" else v
+                    for k, v in zip(field_names, item.record)
+                },
             }
         return
     if suffix == ".geojson" and path.name.startswith("hotosm_"):
@@ -447,17 +500,67 @@ def _compose_plan_maturity_lombardia(
     )
 
 
+def _compose_plan_maturity_national_fallback(
+    scope: dict[str, Any],
+    municipalities: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Fallback nazionale: NON_DETERMINATO per tutte le regioni senza adapter dedicato."""
+    config = yaml.safe_load(TARGETS_FILE.read_text("utf-8"))
+    status_defs = config["targets"]["PIANI_MATURITA"]["statuses"]
+    nd = status_defs["NON_DETERMINATO"]
+    processed_at = _now()
+    admin_path = ADMIN_DIR / "admin_municipalities.geojson"
+    source_date = datetime.fromtimestamp(
+        admin_path.stat().st_mtime, timezone.utc
+    ).isoformat(timespec="seconds")
+    features: list[dict[str, Any]] = []
+    for admin in municipalities:
+        ap = admin["properties"]
+        features.append({
+            "type": "Feature",
+            "geometry": admin["geometry"],
+            "properties": {
+                "codice_istat": str(ap["key"]),
+                "comune": ap["name"],
+                "provincia": ap["province"],
+                "regione": ap["region"],
+                "plan_name": None,
+                "plan_status_raw": None,
+                "plan_status_code": "NON_DETERMINATO",
+                "plan_status_label": nd["label"],
+                "plan_status_rank": nd["rank"],
+                "cartography_status": "non_determinato_dalla_fonte",
+                "procedure_date": None,
+                "source_uuid": "istat:confini_amministrativi:comuni",
+                "source_title": "Confini amministrativi comunali (fallback nazionale)",
+                "source_url": None,
+                "source_date": source_date,
+                "processed_at": processed_at,
+                "coverage_status": "minimal",
+            },
+        })
+    return _write_target(
+        "PIANI_MATURITA",
+        scope,
+        features,
+        [admin_path, TARGETS_FILE],
+        status="partial",
+        coverage={
+            "municipalities_expected": len(municipalities),
+            "municipalities_with_status": len(features),
+            "complete": False,
+            "detail": "Fallback nazionale — stato piani non determinabile senza fonte regionale",
+        },
+    )
+
+
 def compose_plan_maturity(scope: dict[str, Any]) -> dict[str, Any]:
     municipalities = _scope_municipalities(scope)
     region_keys = {str(f["properties"]["reg_key"]) for f in municipalities}
     if region_keys == {"03"}:
         return _compose_plan_maturity_lombardia(scope, municipalities)
-    if region_keys != {"02"}:
-        return {
-            "target": "PIANI_MATURITA",
-            "status": "blocked",
-            "message": "Fonte ufficiale dello stato dei piani non ancora configurata per questo territorio.",
-        }
+    if region_keys not in ({"02"}, ):
+        return _compose_plan_maturity_national_fallback(scope, municipalities)
     if not STATUS_SOURCE_VDA.exists():
         return {
             "target": "PIANI_MATURITA",
@@ -600,19 +703,27 @@ def _resolve_raw(item: dict[str, Any]) -> Path | None:
         return None
     ente = str(item.get("ente") or parts[0])
 
-    # 1) convenzioni storiche a cartelle annidate
+    # 1) convenzioni storiche a cartelle annidate (VdA / Liguria)
     if parts[0] == "r_vda" and len(parts) == 3:
-        matches = sorted((RAW / "regione" / "r_vda" / parts[1]).glob(f"{parts[2]}_*.geojson"))
-        return matches[0] if matches else None
+        base = RAW / "regione" / "r_vda" / parts[1]
+        for ext in ("geojson", "shp"):
+            matches = sorted(base.glob(f"{parts[2]}_*.{ext}"))
+            if matches:
+                return matches[0]
+        return None
     if parts[0] == "r_liguria" and len(parts) == 3:
-        matches = sorted((RAW / "regione" / "r_liguria").glob(f"{parts[1]}_*/{parts[2]}_*.geojson"))
-        return matches[0] if matches else None
+        base = RAW / "regione" / "r_liguria"
+        for ext in ("geojson", "shp"):
+            matches = sorted(base.glob(f"{parts[1]}_*/{parts[2]}_*.{ext}"))
+            if matches:
+                return matches[0]
+        return None
 
     root = _source_root(ente)
     if root is None:
         return None
 
-    # 2) match per uuid nel manifest di download (piemonte_catalog e simili)
+    # 2) match per uuid nel manifest di download
     results: list[dict[str, Any]] = []
     manifest = root / "_manifest.json"
     if manifest.exists():
@@ -622,27 +733,60 @@ def _resolve_raw(item: dict[str, Any]) -> Path | None:
         except Exception:
             results = []
         for row in results:
-            if str(row.get("uuid") or "") == uuid and row.get("local_path"):
+            row_uuid = str(row.get("uuid") or "")
+            if row_uuid == uuid and row.get("local_path"):
                 candidate = root / str(row["local_path"])
                 if candidate.exists():
                     return candidate
+            # ArcGIS manifests: match by service_key:layer_id → uuid tail
+            if not row_uuid and len(parts) >= 3:
+                lk = str(row.get("layer_key") or "")
+                if lk == ":".join(parts[1:]):
+                    for field in ("local_path", "path"):
+                        lp = row.get(field)
+                        if lp:
+                            candidate = root / str(lp)
+                            if candidate.exists():
+                                return candidate
+            # websit_xml / piemonte_catalog: match by archive name → uuid tail
+            if not row_uuid and len(parts) >= 2:
+                archive = str(row.get("archive") or "")
+                if archive and archive == parts[-1]:
+                    for field in ("local_path", "path"):
+                        lp = row.get(field)
+                        if lp:
+                            candidate = root / str(lp)
+                            if candidate.exists():
+                                return candidate
 
     # 3) ricostruzione nome file per adapter deterministici
     rest = uuid.split(":", 1)[1] if len(parts) > 1 else ""
-    candidate = root / f"{_file_slug(rest)}.geojson"          # wfs_generic
-    if candidate.exists():
-        return candidate
-    glob_matches = sorted(root.glob(f"L{parts[-1]}_*.geojson"))  # arcgis_rest
-    if glob_matches:
-        return glob_matches[0]
+    for ext in ("geojson", "shp"):
+        candidate = root / f"{_file_slug(rest)}.{ext}"
+        if candidate.exists():
+            return candidate
+    for ext in ("geojson", "shp"):
+        glob_matches = sorted(root.glob(f"L{parts[-1]}_*.{ext}"))
+        if glob_matches:
+            return glob_matches[0]
+    # arcgis_rest: anche in sottocartelle service_key/
+    if len(parts) >= 3:
+        svc = parts[1]
+        for ext in ("geojson", "shp"):
+            glob_matches = sorted(root.glob(f"{svc}/L{parts[-1]}_*.{ext}"))
+            if glob_matches:
+                return glob_matches[0]
 
     # 4) ckan_collection: match nel manifest per dataset
     if len(parts) >= 2 and results:
         for row in results:
-            if str(row.get("dataset") or "") == parts[1] and row.get("local_path"):
-                candidate = root / str(row["local_path"])
-                if candidate.exists():
-                    return candidate
+            if str(row.get("dataset") or "") == parts[1]:
+                for field in ("local_path", "path"):
+                    lp = row.get(field)
+                    if lp:
+                        candidate = root / str(lp)
+                        if candidate.exists():
+                            return candidate
     return None
 
 
@@ -735,23 +879,34 @@ def compose_constraints(scope: dict[str, Any]) -> dict[str, Any]:
     admin_features = [pair[0] for pair in usable]
     admin_shapes = [pair[1] for pair in usable]
     tree = STRtree(admin_shapes)
+    scope_bounds = (
+        min(geom.bounds[0] for geom in admin_shapes),
+        min(geom.bounds[1] for geom in admin_shapes),
+        max(geom.bounds[2] for geom in admin_shapes),
+        max(geom.bounds[3] for geom in admin_shapes),
+    )
     output: list[dict[str, Any]] = []
     invalid = 0
     source_failures: list[dict[str, str]] = []
+    skipped_large: list[dict[str, Any]] = []
+    max_bytes = MAX_SOURCE_FILE_MB * 1_000_000
     processed_at = _now()
 
     for item, path in candidates:
-        try:
-            data = _read_json(path)
-        except Exception as exc:
-            source_failures.append({"path": str(path), "reason": str(exc)})
+        if not path.name.startswith("hotosm_") and path.stat().st_size > max_bytes:
+            skipped_large.append({"path": str(path), "mb": path.stat().st_size // 1_000_000})
             continue
         canonical = str(item.get("canonical_key") or "")
         severity, effect = _constraint_severity(item)
         source_date = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat(
             timespec="seconds"
         )
-        for source_feature in data.get("features", []):
+        try:
+            feature_iter = _iter_source_features(path, scope_bounds)
+        except Exception as exc:
+            source_failures.append({"path": str(path), "reason": str(exc)})
+            continue
+        for source_feature in feature_iter:
             source_geom = _valid_geometry(source_feature.get("geometry"))
             if source_geom is None:
                 invalid += 1
@@ -831,6 +986,7 @@ def compose_constraints(scope: dict[str, Any]) -> dict[str, Any]:
             "invalid_or_unreadable_features": invalid,
             "source_failures": source_failures,
             "missing_source_uuids": missing_sources[:100],
+            "skipped_large_files": skipped_large,
         },
     )
 
@@ -838,12 +994,6 @@ def compose_constraints(scope: dict[str, Any]) -> dict[str, Any]:
 def compose_buildability(scope: dict[str, Any]) -> dict[str, Any]:
     municipalities = _scope_municipalities(scope)
     regions = {str(f["properties"]["reg_key"]) for f in municipalities}
-    if regions != {"02"}:
-        return {
-            "target": "SEMAFORO_EDIFICABILITA",
-            "status": "blocked",
-            "message": "Zonizzazione urbanistica non ancora configurata per questo territorio.",
-        }
     territory = str(scope.get("key") or "regione")
     plan_output = OUT / "PIANI_MATURITA" / f"{territory}.geojson"
     constraints_manifest = OUT / "VINCOLI_COMUNALI" / f"{territory}.manifest.json"
@@ -1805,6 +1955,374 @@ def compose_trasparenza_appalti(scope: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _compose_cruscotto_rischi(scope: dict[str, Any]) -> dict[str, Any]:
+    """RISCHI_PERICOLOSITA da cruscotto ISPRA IdroGEO: indicatori per-comune di
+    pericolosità alluvioni (P1/P2/P3) e frane (P1-P4). Fallback quando non ci
+    sono layer GIS regionali riconosciuti."""
+    municipalities = _scope_municipalities(scope)
+    istat_codes = {str(f["properties"]["key"]) for f in municipalities}
+    terr = _load_cruscotto_section("territorio", istat_codes)
+    processed_at = _now()
+    output: list[dict[str, Any]] = []
+    usable = matched = 0
+    for feature in municipalities:
+        ap = feature["properties"]
+        geom = _valid_geometry(feature.get("geometry"))
+        if geom is None:
+            continue
+        usable += 1
+        code = str(ap["key"])
+        rischio = (terr.get(code) or {}).get("rischio_idrogeologico")
+        properties: dict[str, Any] = {
+            "codice_istat": ap["key"],
+            "comune": ap.get("name"),
+            "provincia": ap.get("province"),
+            "regione": ap.get("region"),
+            "class": "rischio_idrogeologico",
+            "canonical_class": "RISCHI_PERICOLOSITA",
+            "source_uuid": "n_cruscotto_italia:ispra_idrogeo_pir",
+            "source_title": "ISPRA IdroGEO PIR — Mosaicatura pericolosità v5.0 (via Cruscotto Italia)",
+            "source_url": "https://idrogeo.isprambiente.it/",
+            "source_ente": "n_cruscotto_italia",
+            "license": "CC-BY 4.0",
+            "attribution": "ISPRA IdroGEO / Cruscotto Italia — dati.gov.it",
+            "processed_at": processed_at,
+            "coverage_status": "tagged" if rischio else "senza_dato",
+        }
+        if rischio:
+            matched += 1
+            alluv = rischio.get("alluvioni", {})
+            frane = rischio.get("frane", {})
+            properties.update({
+                "alluvioni_ar_p3_kmq": alluv.get("ar_p3_kmq"),
+                "alluvioni_ar_p2_kmq": alluv.get("ar_p2_kmq"),
+                "alluvioni_ar_p1_kmq": alluv.get("ar_p1_kmq"),
+                "alluvioni_pop_p3": alluv.get("pop_p3"),
+                "alluvioni_pop_p2": alluv.get("pop_p2"),
+                "alluvioni_pop_p1": alluv.get("pop_p1"),
+                "frane_ar_p3p4_kmq": frane.get("ar_p3p4_kmq"),
+                "frane_ar_p3p4_pct": frane.get("ar_p3p4_pct"),
+                "frane_pop_p3p4": frane.get("pop_p3p4"),
+                "frane_pop_p3p4_pct": frane.get("pop_p3p4_pct"),
+                "frane_ed_p3p4": frane.get("ed_p3p4"),
+            })
+        output.append({"type": "Feature", "geometry": mapping(geom), "properties": properties})
+
+    complete = usable > 0 and matched == usable
+    return _write_target(
+        "RISCHI_PERICOLOSITA", scope, output,
+        [ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
+        status="completed" if complete else "partial",
+        coverage={"complete": complete, "comuni_totali": usable,
+                  "comuni_con_dato": matched, "fonte": "ISPRA IdroGEO PIR (cruscotto)"},
+        diagnostics={"comuni_senza_dato": usable - matched},
+    )
+
+
+def _compose_cruscotto_energia(scope: dict[str, Any]) -> dict[str, Any]:
+    """ENERGIA_RETI da cruscotto PUN (GSE): colonnine di ricarica geolocalizzate."""
+    municipalities = _scope_municipalities(scope)
+    regions = {str(f["properties"]["reg_key"]) for f in municipalities}
+    region = next(iter(regions))
+    istat_codes = {str(f["properties"]["key"]) for f in municipalities}
+    admin_geometries = [_valid_geometry(f["geometry"]) for f in municipalities]
+    usable = [(f, g) for f, g in zip(municipalities, admin_geometries) if g is not None]
+    admin_features = [pair[0] for pair in usable]
+    admin_shapes = [pair[1] for pair in usable]
+    tree = STRtree(admin_shapes)
+    processed_at = _now()
+    output: list[dict[str, Any]] = []
+    total_points = 0
+    for code in istat_codes:
+        data = _load_cruscotto_json(code)
+        if not data:
+            continue
+        pun = data.get("pun")
+        if not pun or not pun.get("punti"):
+            continue
+        for pt in pun["punti"]:
+            lat = pt.get("lat")
+            lon = pt.get("lon")
+            if not lat or not lon:
+                continue
+            try:
+                point = shape({"type": "Point", "coordinates": [float(lon), float(lat)]})
+            except Exception:
+                continue
+            admin = None
+            for index in tree.query(point):
+                try:
+                    if point.intersects(admin_shapes[int(index)]):
+                        admin = admin_features[int(index)]
+                        break
+                except Exception:
+                    pass
+            if admin is None:
+                continue
+            ap = admin["properties"]
+            total_points += 1
+            output.append({
+                "type": "Feature",
+                "geometry": mapping(point),
+                "properties": {
+                    "codice_istat": ap["key"],
+                    "comune": ap.get("name"),
+                    "provincia": ap.get("province"),
+                    "regione": ap.get("region"),
+                    "class": "ricarica",
+                    "canonical_class": "ENERGIA_RETI",
+                    "source_uuid": "n_cruscotto_italia:pun_colonnine",
+                    "source_title": "GSE — Piattaforma Unica Nazionale colonnine ricarica",
+                    "source_url": "https://www.piattaformaunicanazionale.it/",
+                    "source_ente": "n_cruscotto_italia",
+                    "license": "CC BY 4.0",
+                    "attribution": "GSE — PUN (ex art. 52 c.2 D.Lgs 82/2005)",
+                    "processed_at": processed_at,
+                    "coverage_status": "tagged",
+                    "id_evse": pt.get("id_evse"),
+                    "cpo": pt.get("cpo"),
+                    "stato": pt.get("stato"),
+                    "indirizzo": pt.get("indirizzo"),
+                },
+            })
+    status = "completed" if total_points > 0 else "blocked"
+    return _write_target(
+        "ENERGIA_RETI", scope, output,
+        [ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
+        status=status,
+        coverage={"punti_ricarica": total_points, "fonte": "GSE PUN (cruscotto)"},
+        diagnostics={},
+    )
+
+
+def compose_energia_reti(scope: dict[str, Any]) -> dict[str, Any]:
+    """ENERGIA_RETI: prova prima i layer GIS regionali, poi cade sul cruscotto PUN."""
+    result = compose_feature_layer("ENERGIA_RETI", scope)
+    if result.get("status") != "blocked":
+        return result
+    return _compose_cruscotto_energia(scope)
+
+
+def _compose_cruscotto_commercio(scope: dict[str, Any]) -> dict[str, Any]:
+    """COMMERCIO_PRODUTTIVO da cruscotto ISTAT ASIA UL: imprese attive e addetti
+    per comune, top settori ATECO. Fallback quando non ci sono dati regionali."""
+    municipalities = _scope_municipalities(scope)
+    istat_codes = {str(f["properties"]["key"]) for f in municipalities}
+    asia_data = _load_cruscotto_section("asia", istat_codes)
+    processed_at = _now()
+    output: list[dict[str, Any]] = []
+    usable = matched = 0
+    for feature in municipalities:
+        ap = feature["properties"]
+        geom = _valid_geometry(feature.get("geometry"))
+        if geom is None:
+            continue
+        usable += 1
+        code = str(ap["key"])
+        asia = asia_data.get(code)
+        kpi = (asia or {}).get("kpi", {})
+        properties: dict[str, Any] = {
+            "codice_istat": ap["key"],
+            "comune": ap.get("name"),
+            "provincia": ap.get("province"),
+            "regione": ap.get("region"),
+            "class": "commercio",
+            "canonical_class": "COMMERCIO_PRODUTTIVO",
+            "source_uuid": "n_cruscotto_italia:istat_asia_ul",
+            "source_title": "ISTAT — Archivio Statistico Imprese Attive (ASIA UL, via Cruscotto Italia)",
+            "source_url": "https://esploradati.istat.it/databrowser/",
+            "source_ente": "n_cruscotto_italia",
+            "license": "CC BY 3.0 IT",
+            "attribution": "ISTAT ASIA UL / Cruscotto Italia — dati.gov.it",
+            "processed_at": processed_at,
+            "coverage_status": "tagged" if kpi else "senza_dato",
+        }
+        if kpi:
+            matched += 1
+            properties.update({
+                "ul_totali": kpi.get("ul_totali"),
+                "addetti_totali": kpi.get("addetti_totali"),
+                "addetti_per_ul": kpi.get("addetti_per_ul"),
+                "ul_yoy_pct": kpi.get("ul_yoy_pct"),
+            })
+            top = kpi.get("top_settori_ul", [])
+            for i, s in enumerate(top[:5]):
+                properties[f"top{i+1}_settore"] = s.get("label")
+                properties[f"top{i+1}_ul"] = s.get("ul")
+        output.append({"type": "Feature", "geometry": mapping(geom), "properties": properties})
+
+    complete = usable > 0 and matched == usable
+    return _write_target(
+        "COMMERCIO_PRODUTTIVO", scope, output,
+        [ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
+        status="completed" if complete else "partial",
+        coverage={"complete": complete, "comuni_totali": usable,
+                  "comuni_con_dato": matched, "fonte": "ISTAT ASIA UL (cruscotto)"},
+        diagnostics={"comuni_senza_dato": usable - matched},
+    )
+
+
+def compose_commercio_produttivo(scope: dict[str, Any]) -> dict[str, Any]:
+    """COMMERCIO_PRODUTTIVO: prova prima i layer GIS regionali, poi cade
+    sul cruscotto ISTAT ASIA UL."""
+    result = compose_feature_layer("COMMERCIO_PRODUTTIVO", scope)
+    if result.get("status") != "blocked":
+        return result
+    return _compose_cruscotto_commercio(scope)
+
+
+def compose_rischi_pericolosita(scope: dict[str, Any]) -> dict[str, Any]:
+    """RISCHI_PERICOLOSITA: prova prima i layer GIS regionali (recognition),
+    poi cade sul cruscotto ISPRA per le regioni senza dati spaziali."""
+    result = compose_feature_layer("RISCHI_PERICOLOSITA", scope)
+    if result.get("status") != "blocked":
+        return result
+    return _compose_cruscotto_rischi(scope)
+
+
+def _compose_cruscotto_veicoli(scope: dict[str, Any]) -> dict[str, Any]:
+    """MOBILITA_ACCESSIBILITA da cruscotto ACI/ISTAT: parco veicolare per-comune,
+    classi euro, incidenti. Fallback quando non ci sono layer GIS regionali."""
+    municipalities = _scope_municipalities(scope)
+    istat_codes = {str(f["properties"]["key"]) for f in municipalities}
+    veicoli_data = _load_cruscotto_section("veicoli", istat_codes)
+    processed_at = _now()
+    output: list[dict[str, Any]] = []
+    usable = matched = 0
+    for feature in municipalities:
+        ap = feature["properties"]
+        geom = _valid_geometry(feature.get("geometry"))
+        if geom is None:
+            continue
+        usable += 1
+        code = str(ap["key"])
+        veic = veicoli_data.get(code)
+        properties: dict[str, Any] = {
+            "codice_istat": ap["key"],
+            "comune": ap.get("name"),
+            "provincia": ap.get("province"),
+            "regione": ap.get("region"),
+            "class": "mobilita_veicolare",
+            "canonical_class": "MOBILITA_ACCESSIBILITA",
+            "source_uuid": "n_cruscotto_italia:aci_istat_veicoli",
+            "source_title": "ACI/ISTAT — Parco veicolare e incidentalità (via Cruscotto Italia)",
+            "source_url": "https://cruscotto-italia.dati.gov.it",
+            "source_ente": "n_cruscotto_italia",
+            "license": "IODL 2.0",
+            "attribution": "ACI / ISTAT / Cruscotto Italia — dati.gov.it",
+            "processed_at": processed_at,
+            "coverage_status": "tagged" if veic else "senza_dato",
+        }
+        if veic:
+            matched += 1
+            parco = veic.get("parco_veicoli", {})
+            properties.update({
+                "autovetture": parco.get("autovetture"),
+                "autobus": parco.get("autobus"),
+                "motocicli": parco.get("motocicli"),
+                "autocarri": parco.get("autocarri"),
+                "popolazione": veic.get("popolazione"),
+            })
+            euro = parco.get("euro", {})
+            if euro:
+                properties["euro6_pct"] = euro.get("euro6_pct")
+                properties["elettrico_pct"] = euro.get("elettrico_pct")
+        output.append({"type": "Feature", "geometry": mapping(geom), "properties": properties})
+
+    complete = usable > 0 and matched == usable
+    return _write_target(
+        "MOBILITA_ACCESSIBILITA", scope, output,
+        [ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
+        status="completed" if complete else "partial",
+        coverage={"complete": complete, "comuni_totali": usable,
+                  "comuni_con_dato": matched, "fonte": "ACI/ISTAT veicoli (cruscotto)"},
+        diagnostics={"comuni_senza_dato": usable - matched},
+    )
+
+
+def compose_mobilita_accessibilita(scope: dict[str, Any]) -> dict[str, Any]:
+    """MOBILITA_ACCESSIBILITA: prova prima i layer GIS regionali, poi cade
+    sul cruscotto veicoli per le regioni senza dati spaziali."""
+    result = compose_feature_layer("MOBILITA_ACCESSIBILITA", scope)
+    if result.get("status") != "blocked":
+        return result
+    return _compose_cruscotto_veicoli(scope)
+
+
+def _compose_cruscotto_redditi(scope: dict[str, Any]) -> dict[str, Any]:
+    """VALORI_OMI fallback da cruscotto MEF Redditi: proxy reddito IRPEF per comune."""
+    municipalities = _scope_municipalities(scope)
+    istat_codes = {str(f["properties"]["key"]) for f in municipalities}
+    redditi_data = _load_cruscotto_section("redditi", istat_codes)
+    processed_at = _now()
+    output: list[dict[str, Any]] = []
+    usable = matched = 0
+    for feature in municipalities:
+        ap = feature["properties"]
+        geom = _valid_geometry(feature.get("geometry"))
+        if not geom:
+            continue
+        istat = str(ap["key"])
+        rd = redditi_data.get(istat) or {}
+        anni = rd.get("anni_disponibili") or []
+        props: dict[str, Any] = {
+            "codice_istat": istat,
+            "comune": ap["name"],
+            "provincia": ap["province"],
+            "regione": ap["region"],
+            "geometry_granularity": "municipality_overview",
+            "source_uuid": "mef:irpef:redditi",
+            "source_title": "MEF — Statistiche sulle dichiarazioni IRPEF (proxy OMI)",
+            "source_url": rd.get("url_fonte"),
+            "processed_at": processed_at,
+            "coverage_status": "proxy",
+            "disclaimer": "Reddito IRPEF medio come proxy indicativo del mercato immobiliare; non sostituisce le quotazioni OMI.",
+        }
+        if anni:
+            matched += 1
+            latest = str(max(anni))
+            yr = (rd.get("anni") or {}).get(latest) or {}
+            rc = yr.get("reddito_complessivo") or {}
+            props.update({
+                "anno_redditi": int(latest),
+                "contribuenti": yr.get("contribuenti"),
+                "reddito_medio": rc.get("medio"),
+                "reddito_medio_per_dichiarante": rc.get("medio_per_dichiarante"),
+                "reddito_totale": rc.get("tot"),
+                "imposta_netta_media": (yr.get("imposta_netta") or {}).get("medio"),
+            })
+        else:
+            props.update({
+                "anno_redditi": None,
+                "contribuenti": None,
+                "reddito_medio": None,
+                "reddito_medio_per_dichiarante": None,
+                "reddito_totale": None,
+                "imposta_netta_media": None,
+            })
+        usable += 1
+        output.append({"type": "Feature", "geometry": mapping(geom), "properties": props})
+    return _write_target(
+        "VALORI_OMI", scope, output,
+        [ADMIN_DIR / "admin_municipalities.geojson", TARGETS_FILE],
+        status="partial",
+        coverage={
+            "municipalities_expected": len(municipalities),
+            "municipalities_with_data": matched,
+            "geometry_granularity": "municipality_overview",
+            "detail": "Proxy reddito IRPEF — download OMI zone completo non ancora eseguito",
+        },
+    )
+
+
+def compose_valori_omi(scope: dict[str, Any]) -> dict[str, Any]:
+    """VALORI_OMI: prova prima i layer GIS (zone OMI scaricate), poi proxy redditi."""
+    result = compose_feature_layer("VALORI_OMI", scope)
+    if result.get("status") != "blocked":
+        return result
+    return _compose_cruscotto_redditi(scope)
+
+
 # Builder DEDICATI (logica specifica). Tutti gli altri target usano il builder
 # generico `compose_feature_layer` via `compose_target`.
 COMPOSERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
@@ -1820,6 +2338,11 @@ COMPOSERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "TRASPARENZA_APPALTI": compose_trasparenza_appalti,
     "CATASTO_PARTICELLE": compose_catasto_particelle,
     "TOPONOMASTICA_CIVICI": lambda scope: compose_tabular_join("TOPONOMASTICA_CIVICI", scope),
+    "RISCHI_PERICOLOSITA": compose_rischi_pericolosita,
+    "MOBILITA_ACCESSIBILITA": compose_mobilita_accessibilita,
+    "ENERGIA_RETI": compose_energia_reti,
+    "COMMERCIO_PRODUTTIVO": compose_commercio_produttivo,
+    "VALORI_OMI": compose_valori_omi,
 }
 
 

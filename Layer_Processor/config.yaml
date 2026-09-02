@@ -1,0 +1,19 @@
+# Layer Processor — configurazione path.
+# Modificabile dalla dashboard (Impostazioni) o a mano.
+# Percorsi assoluti o relativi alla root del Layer_Processor.
+
+paths:
+  # Cartella dati grezzi scaricati (GeoJSON, SHP, CSV, XLSX…)
+  raw: raw
+
+  # Cartella di lavoro (cataloghi, riconoscimenti, proposte, job)
+  work: work
+
+  # Cartella output composizioni finali
+  out: out
+
+  # Cartella stato pipeline
+  state: state
+
+  # Confini amministrativi ISTAT (admin_regions/provinces/municipalities.geojson)
+  admin: ../Geography_Locations/outputs
