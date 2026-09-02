@@ -93,6 +93,15 @@ STAGE_DEFINITIONS = [
         "output": "",
     },
     {
+        "id": "omi",
+        "number": "04b",
+        "name": "OMI Valori Immobiliari",
+        "description": "Scarica le zone OMI e i valori immobiliari da Agenzia delle Entrate.",
+        "available": True,
+        "status": "pronto",
+        "output": "Zone e valori OMI per comune",
+    },
+    {
         "id": "load",
         "number": "05",
         "name": "Caricamento",
@@ -948,8 +957,46 @@ def region_pipeline_progress(region_key: str) -> dict[str, Any]:
     }
 
 
+def _classify_cell_quality(target: str, rk: str) -> str | None:
+    """Classifica la qualità di una cella della matrice di copertura.
+
+    Valori possibili: regional_gis, national_tabular, proxy, minimal, None.
+    """
+    manifest = OUT / target / f"{rk}.manifest.json"
+    if not manifest.exists():
+        return None
+    m = read_json(manifest, {})
+    if not m or not m.get("features"):
+        return None
+    coverage = m.get("coverage", {})
+    sources = m.get("sources", [])
+    cov_json = json.dumps(coverage, ensure_ascii=False).lower()
+    if "proxy" in cov_json:
+        return "proxy"
+    if "fallback nazionale" in cov_json or "non determinabile" in cov_json:
+        return "minimal"
+    data_sources = [
+        s.get("path", "") for s in sources
+        if "admin_" not in os.path.basename(s.get("path", ""))
+        and "Geography_Locations" not in s.get("path", "")
+        and "registry" not in s.get("path", "")
+    ]
+    if not data_sources:
+        return "national_tabular"
+    has_regional = any(
+        "/regione/" in p or "/provincia/" in p or "/comune/" in p
+        for p in data_sources
+    )
+    has_national = any("/nazionale/" in p for p in data_sources)
+    if has_regional:
+        return "regional_gis"
+    if has_national:
+        return "national_tabular"
+    return "national_tabular"
+
+
 def coverage_matrix_payload() -> dict[str, Any]:
-    """Matrice target × regione con feature count per cella."""
+    """Matrice target × regione con feature count e qualità per cella."""
     region_names = {
         "01": "Piemonte", "02": "Valle d'Aosta", "03": "Lombardia",
         "04": "Trentino-Alto Adige", "05": "Veneto", "06": "Friuli Venezia Giulia",
@@ -958,13 +1005,21 @@ def coverage_matrix_payload() -> dict[str, Any]:
         "15": "Campania", "16": "Puglia", "17": "Basilicata", "18": "Calabria",
         "19": "Sicilia", "20": "Sardegna",
     }
+    runnable = {
+        key for (level, key) in SCOPE_PIPELINES if level == "region"
+    }
     regions = sorted(region_names.keys())
     if not OUT.exists():
-        return {"regions": regions, "region_names": region_names, "targets": [], "matrix": {}}
+        return {
+            "regions": regions, "region_names": region_names,
+            "targets": [], "matrix": {}, "runnable_regions": sorted(runnable),
+        }
     targets = sorted(d.name for d in OUT.iterdir() if d.is_dir())
     matrix: dict[str, dict[str, int | None]] = {}
+    quality: dict[str, dict[str, str | None]] = {}
     for target in targets:
         row: dict[str, int | None] = {}
+        qrow: dict[str, str | None] = {}
         for rk in regions:
             manifest = OUT / target / f"{rk}.manifest.json"
             if manifest.exists():
@@ -972,7 +1027,9 @@ def coverage_matrix_payload() -> dict[str, Any]:
                 row[rk] = int(m.get("features", 0) or 0)
             else:
                 row[rk] = None
+            qrow[rk] = _classify_cell_quality(target, rk)
         matrix[target] = row
+        quality[target] = qrow
     totals_by_target = {
         t: sum(v for v in row.values() if v is not None)
         for t, row in matrix.items()
@@ -989,11 +1046,22 @@ def coverage_matrix_payload() -> dict[str, Any]:
         )
         for rk in regions
     }
+    quality_summary = {"regional_gis": 0, "national_tabular": 0, "proxy": 0, "minimal": 0, "missing": 0}
+    for t in targets:
+        for rk in regions:
+            q = quality[t].get(rk)
+            if q:
+                quality_summary[q] = quality_summary.get(q, 0) + 1
+            elif matrix[t].get(rk) is None:
+                quality_summary["missing"] += 1
     return {
         "regions": regions,
         "region_names": region_names,
         "targets": targets,
         "matrix": matrix,
+        "quality": quality,
+        "quality_summary": quality_summary,
+        "runnable_regions": sorted(runnable),
         "totals_by_target": totals_by_target,
         "coverage_by_target": coverage_by_target,
         "totals_by_region": totals_by_region,
@@ -1701,6 +1769,49 @@ class JobManager:
         thread.start()
         return self.snapshot() or job
 
+    def start_omi(
+        self, requested_scope: dict[str, Any], max_comuni: int | None = None,
+    ) -> dict[str, Any]:
+        with self.lock:
+            if self.current and self.current.get("status") == "running":
+                raise RuntimeError("Un processo è già in esecuzione.")
+            label = "OMI download"
+            job = {
+                "id": str(uuid.uuid4()),
+                "stage": "omi",
+                "label": label,
+                "scope": requested_scope,
+                "status": "running",
+                "progress": 0,
+                "current": 0,
+                "total": 0,
+                "force": False,
+                "resume_options": {"max_comuni": max_comuni},
+                "started_at": datetime.now().astimezone().isoformat(),
+                "started_at_epoch": time.time(),
+                "finished_at": None,
+                "exit_code": None,
+                "logs": ["Avvio download OMI…"],
+                "result": None,
+                "calls": [],
+                "call_counts": {},
+                "calls_total": 0,
+            }
+            self.current = job
+            self.call_states[job["id"]] = {}
+        command = [
+            sys.executable, "-u", "run.py", "omi",
+            "--action", "download", "--scope", "all",
+            "--progress",
+        ]
+        if max_comuni:
+            command.extend(["--max-comuni", str(max_comuni)])
+        thread = threading.Thread(
+            target=self._run_command, args=(job["id"], command), daemon=True,
+        )
+        thread.start()
+        return self.snapshot() or job
+
     def resume(self, job_id: str) -> dict[str, Any]:
         """Rilancia un job concluso conservando scope e opzioni riprendibili."""
         with self.lock:
@@ -1740,6 +1851,11 @@ class JobManager:
                     "I target della vecchia composizione non sono disponibili: selezionali e riavvia."
                 )
             return self.start_compose(scope, list(targets))
+        if stage == "omi":
+            return self.start_omi(
+                scope,
+                int(options.get("max_comuni") or 0) or None,
+            )
         raise RuntimeError("Questo stadio non supporta ancora la ripresa.")
 
     def _run_command(self, job_id: str, command: list[str]) -> None:
@@ -2124,6 +2240,24 @@ def dashboard_payload(scope: dict[str, Any]) -> dict[str, Any]:
                 stage["status"] = "completato"
             elif not compose_available:
                 stage["status"] = "da_implementare"
+        if definition["id"] == "omi":
+            stage["available"] = True
+            omi_dir = _PATHS["raw"] / "nazionale" / "n_omi"
+            if (
+                current
+                and current["status"] == "running"
+                and current["stage"] == "omi"
+            ):
+                stage["status"] = "in_esecuzione"
+            elif omi_dir.exists():
+                comuni_dirs = [
+                    d for d in omi_dir.iterdir()
+                    if d.is_dir() and not d.name.startswith("_")
+                ]
+                stage["detail"] = f"{len(comuni_dirs)} comuni scaricati"
+                stage["status"] = "completato" if len(comuni_dirs) > 100 else "parziale"
+            else:
+                stage["status"] = "da_avviare"
         stages.append(stage)
     scoped_history = [
         item
@@ -2191,14 +2325,23 @@ def _browse_directory(raw_path: str) -> dict[str, Any]:
 class Handler(BaseHTTPRequestHandler):
     server_version = "LayerProcessorDashboard/2.0"
 
+    def _cors_origin(self) -> str:
+        origin = self.headers.get("Origin", "")
+        if origin and ("localhost" in origin or "127.0.0.1" in origin):
+            return origin
+        return "http://localhost:3000"
+
     def _headers(self, status: int = 200) -> None:
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Access-Control-Allow-Origin", "http://localhost:3000")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
+
+    def do_OPTIONS(self) -> None:  # noqa: N802
+        self._headers(204)
 
     def _json(self, payload: Any, status: int = 200) -> None:
         self._headers(status)
@@ -2305,7 +2448,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             body = self._body()
             stage = body.get("stage")
-            if stage not in {"discover", "download", "recognize", "compose"}:
+            if stage not in {"discover", "download", "recognize", "compose", "omi"}:
                 self._json(
                     {"error": "Questo stadio non è ancora implementato o autorizzato."},
                     409,
@@ -2327,6 +2470,13 @@ class Handler(BaseHTTPRequestHandler):
                     str(body.get("source")),
                     bool(body.get("only_new", True)),
                     int(body["batch_size"]) if body.get("batch_size") else None,
+                )
+                self._json({"job": job}, 202)
+                return
+            if stage == "omi":
+                job = JOBS.start_omi(
+                    body.get("scope") or {},
+                    int(body.get("max_comuni") or 0) or None,
                 )
                 self._json({"job": job}, 202)
                 return

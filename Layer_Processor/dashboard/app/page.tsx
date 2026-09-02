@@ -1,7 +1,7 @@
 "use client";
 
 import { geoMercator, geoPath } from "d3-geo";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 const API = "http://127.0.0.1:8765";
 
@@ -621,12 +621,26 @@ export default function Home() {
     region_names: Record<string, string>;
     targets: string[];
     matrix: Record<string, Record<string, number | null>>;
+    quality?: Record<string, Record<string, string | null>>;
+    quality_summary?: Record<string, number>;
+    runnable_regions?: string[];
     totals_by_target: Record<string, number>;
     coverage_by_target: Record<string, number>;
     totals_by_region: Record<string, number>;
     total_features: number;
   } | null>(null);
   const [coverageLoading, setCoverageLoading] = useState(false);
+  const [provenance, setProvenance] = useState<{
+    target: string;
+    territory: string;
+    available: boolean;
+    composed_at?: string;
+    features?: number;
+    coverage?: Record<string, unknown>;
+    raw_sources?: { path: string; source_key: string | null; ente: string | null; portale: string | null }[];
+    layer_sources?: { source_uuid: string; source_title: string; source_url: string }[];
+    message?: string;
+  } | null>(null);
   const [onlyActiveSources, setOnlyActiveSources] = useState(false);
   const [onlySourceDownloadable, setOnlySourceDownloadable] = useState(false);
   const [sourceChecks, setSourceChecks] = useState<
@@ -828,6 +842,29 @@ export default function Home() {
     setConfigPaths((prev) => ({ ...prev, [browsing.key]: browsing.path }));
     setConfigDirty(true);
     setBrowsing(null);
+  };
+
+  const loadProvenance = async (target: string, regionKey: string) => {
+    try {
+      const params = new URLSearchParams({ target, level: "region", key: regionKey });
+      const r = await fetch(`${API}/api/provenance?${params}`);
+      setProvenance(await r.json());
+    } catch {
+      setProvenance(null);
+    }
+  };
+
+  const qualityLabel: Record<string, string> = {
+    regional_gis: "GIS regionale",
+    national_tabular: "Tabellare nazionale",
+    proxy: "Proxy",
+    minimal: "Minimo / fallback",
+  };
+  const qualityColor: Record<string, string> = {
+    regional_gis: "#40916c",
+    national_tabular: "#4895c7",
+    proxy: "#d4a843",
+    minimal: "#b0aaa0",
   };
 
   const toggleStage = (stageId: string) => {
@@ -1625,6 +1662,14 @@ export default function Home() {
                             }
                           >
                             Componi selezionati
+                          </button>
+                        ) : stage.id === "omi" ? (
+                          <button
+                            className="run-button"
+                            onClick={() => runStage("omi")}
+                            disabled={busy}
+                          >
+                            Scarica OMI
                           </button>
                         ) : (
                           <button
@@ -2555,21 +2600,57 @@ export default function Home() {
                 <span>
                   <strong>{coverageMatrix.total_features.toLocaleString("it-IT")}</strong> feature totali
                 </span>
+                {coverageMatrix.quality_summary && (
+                  <>
+                    <span>
+                      <strong>{coverageMatrix.quality_summary.regional_gis || 0}</strong> GIS
+                    </span>
+                    <span>
+                      <strong>{coverageMatrix.quality_summary.national_tabular || 0}</strong> tabellari
+                    </span>
+                    <span>
+                      <strong>{coverageMatrix.quality_summary.proxy || 0}</strong> proxy
+                    </span>
+                  </>
+                )}
               </div>
             )}
           </div>
           {coverageLoading && <p>Caricamento matrice…</p>}
           {coverageMatrix && (
+            <>
+            <div className="cm-legend">
+              {Object.entries(qualityLabel).map(([k, label]) => (
+                <span key={k} className="cm-legend-item">
+                  <span className="cm-legend-swatch" style={{ background: qualityColor[k] }} />
+                  {label}
+                </span>
+              ))}
+              <span className="cm-legend-item">
+                <span className="cm-legend-swatch" style={{ background: "#f0e6e6", border: "1px solid #ccc" }} />
+                0 feature
+              </span>
+              <span className="cm-legend-item" style={{ marginLeft: "auto", fontSize: 11, opacity: .7 }}>
+                Sottolineate = pipeline regionale attiva
+              </span>
+            </div>
             <div className="coverage-matrix-wrap">
               <table className="coverage-matrix">
                 <thead>
                   <tr>
                     <th className="cm-corner">Target</th>
-                    {coverageMatrix.regions.map((rk) => (
-                      <th key={rk} className="cm-region" title={coverageMatrix.region_names[rk]}>
-                        {coverageMatrix.region_names[rk].slice(0, 3).toUpperCase()}
-                      </th>
-                    ))}
+                    {coverageMatrix.regions.map((rk) => {
+                      const runnable = coverageMatrix.runnable_regions?.includes(rk);
+                      return (
+                        <th
+                          key={rk}
+                          className={`cm-region${runnable ? " cm-region-runnable" : ""}`}
+                          title={`${coverageMatrix.region_names[rk]}${runnable ? " (pipeline attiva)" : ""}`}
+                        >
+                          {coverageMatrix.region_names[rk].slice(0, 3).toUpperCase()}
+                        </th>
+                      );
+                    })}
                     <th className="cm-total">Reg</th>
                     <th className="cm-total">Totale</th>
                   </tr>
@@ -2577,6 +2658,7 @@ export default function Home() {
                 <tbody>
                   {coverageMatrix.targets.map((target) => {
                     const row = coverageMatrix.matrix[target];
+                    const qRow = coverageMatrix.quality?.[target] || {};
                     const cov = coverageMatrix.coverage_by_target[target] || 0;
                     const total = coverageMatrix.totals_by_target[target] || 0;
                     return (
@@ -2586,21 +2668,22 @@ export default function Home() {
                         </td>
                         {coverageMatrix.regions.map((rk) => {
                           const v = row[rk];
+                          const q = qRow[rk];
                           const cls =
                             v === null || v === undefined
                               ? "cm-cell cm-empty"
                               : v === 0
                                 ? "cm-cell cm-zero"
-                                : v < 100
-                                  ? "cm-cell cm-low"
-                                  : v < 10000
-                                    ? "cm-cell cm-mid"
-                                    : "cm-cell cm-high";
+                                : q
+                                  ? `cm-cell cm-q-${q}`
+                                  : "cm-cell cm-q-national_tabular";
+                          const qLabel = q ? qualityLabel[q] || q : "";
                           return (
                             <td
                               key={rk}
                               className={cls}
-                              title={`${coverageMatrix.region_names[rk]}: ${v === null ? "–" : v.toLocaleString("it-IT")} ft`}
+                              title={`${coverageMatrix.region_names[rk]}: ${v === null ? "–" : v.toLocaleString("it-IT")} ft${qLabel ? ` · ${qLabel}` : ""}`}
+                              onClick={() => v !== null && v !== undefined && v > 0 && loadProvenance(target, rk)}
                             >
                               {v === null ? "" : v === 0 ? "0" : v < 1000 ? String(v) : `${Math.round(v / 1000)}k`}
                             </td>
@@ -2630,6 +2713,59 @@ export default function Home() {
                   </tr>
                 </tfoot>
               </table>
+            </div>
+            </>
+          )}
+          {provenance && (
+            <div className="cm-provenance-overlay" onClick={() => setProvenance(null)}>
+              <div className="cm-provenance-dialog" onClick={(e) => e.stopPropagation()}>
+                <h3>{provenance.target?.replace(/_/g, " ")} — {coverageMatrix?.region_names[provenance.territory] || provenance.territory}</h3>
+                {!provenance.available ? (
+                  <p>{provenance.message || "Non disponibile"}</p>
+                ) : (
+                  <>
+                    <dl>
+                      <dt>Feature</dt>
+                      <dd>{provenance.features?.toLocaleString("it-IT") || "–"}</dd>
+                      <dt>Composto il</dt>
+                      <dd>{provenance.composed_at ? new Date(provenance.composed_at).toLocaleString("it-IT") : "–"}</dd>
+                      {provenance.coverage && Object.entries(provenance.coverage).map(([k, v]) => (
+                        <Fragment key={k}>
+                          <dt>{k.replace(/_/g, " ")}</dt>
+                          <dd>{typeof v === "boolean" ? (v ? "si" : "no") : String(v)}</dd>
+                        </Fragment>
+                      ))}
+                    </dl>
+                    {provenance.raw_sources && provenance.raw_sources.length > 0 && (
+                      <div className="prov-sources">
+                        <strong>Fonti dati ({provenance.raw_sources.length})</strong>
+                        <ul>
+                          {provenance.raw_sources.map((s, i) => (
+                            <li key={i}>
+                              {s.ente || s.source_key || "–"}
+                              {s.portale && <> — <a href={s.portale} target="_blank" rel="noreferrer">{new URL(s.portale).hostname}</a></>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {provenance.layer_sources && provenance.layer_sources.length > 0 && (
+                      <div className="prov-sources">
+                        <strong>Layer originali ({provenance.layer_sources.length})</strong>
+                        <ul>
+                          {provenance.layer_sources.slice(0, 20).map((s, i) => (
+                            <li key={i}>{s.source_title || s.source_uuid}</li>
+                          ))}
+                          {provenance.layer_sources.length > 20 && (
+                            <li>…e altri {provenance.layer_sources.length - 20}</li>
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
+                <button className="prov-close" onClick={() => setProvenance(null)}>Chiudi</button>
+              </div>
             </div>
           )}
         </section>
