@@ -176,6 +176,24 @@ SCOPE_RUNNERS: dict[tuple[str, str], dict[str, Any]] = {
         "prefixes": None,
         "catalog": ROOT / "work" / "catalog" / "r_emilia_romagna_pug.csv",
     },
+    ("region", "12"): {
+        "ente": "r_lazio",
+        "label": "Lazio",
+        "prefixes": None,
+        "catalog": ROOT / "work" / "catalog" / "r_lazio.csv",
+    },
+    ("region", "17"): {
+        "ente": "r_basilicata",
+        "label": "Basilicata",
+        "prefixes": None,
+        "catalog": ROOT / "work" / "catalog" / "r_basilicata.csv",
+    },
+    ("region", "20"): {
+        "ente": "r_sardegna",
+        "label": "Sardegna",
+        "prefixes": None,
+        "catalog": ROOT / "work" / "catalog" / "r_sardegna.csv",
+    },
     ("province", "001"): {
         "ente": "p_to",
         "label": "Torino",
@@ -235,6 +253,9 @@ SCOPE_PIPELINES = {
         ],
         "label": "Emilia-Romagna",
     },
+    ("region", "12"): {"source": "r_lazio", "label": "Lazio"},
+    ("region", "17"): {"source": "r_basilicata", "label": "Basilicata"},
+    ("region", "20"): {"source": "r_sardegna", "label": "Sardegna"},
     ("province", "001"): {"source": "p_to", "label": "Città metropolitana di Torino"},
     ("municipality", "001272"): {"source": "c_001272", "label": "Comune di Torino"},
 }
